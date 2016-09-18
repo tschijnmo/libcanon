@@ -35,3 +35,9 @@ install(EXPORT libcanon_exports FILE libcanon-targets.cmake
         NAMESPACE libcanon DESTINATION ${CONFIG_DESTINATION})
 install(FILES ${CONFIG_FILE} ${CONFIGVERSION_FILE}
         DESTINATION ${CONFIG_DESTINATION})
+
+# Old pkg-config support.
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/libcanon.pc.in
+        ${CMAKE_CURRENT_BINARY_DIR}/libcanon.pc @ONLY)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libcanon.pc
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)

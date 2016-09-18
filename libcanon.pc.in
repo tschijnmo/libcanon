@@ -1,0 +1,4 @@
+Name: @PROJECT_NAME@
+Version: @PROJECT_VERSION@
+Description: Canonicalization of combinatorial objects
+Cflags: -I@CMAKE_INSTALL_FULL_INCLUDEDIR@
