@@ -4,6 +4,7 @@
     <option name="PER_PROJECT_SETTINGS">
       <value>
         <option name="RIGHT_MARGIN" value="80" />
+        <option name="FORMATTER_TAGS_ENABLED" value="true" />
         <Objective-C>
           <option name="INDENT_NAMESPACE_MEMBERS" value="0" />
           <option name="FUNCTION_BRACE_PLACEMENT" value="5" />
