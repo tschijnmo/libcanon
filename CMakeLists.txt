@@ -6,6 +6,16 @@ include(GNUInstallDirs)
 option(BUILD_TESTS "Build unit tests" ON)
 option(BUILD_DOCS "Build the API documentation" ON)
 
+# Set the building options.
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    if (${CMAKE_CXX_COMPILER_VERSION} VERSION_LESS "7.0.0")
+        message(FATAL_ERROR "GCC version of at least 7.0.0 is required!")
+    endif ()
+    add_compile_options("-std=c++1z" "-fconcepts")
+else ()
+    message(FATAL_ERROR "Only G++ compiler is currently supported!")
+endif ()
+
 # The main components.
 add_subdirectory(include)
 
