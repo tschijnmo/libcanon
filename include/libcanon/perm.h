@@ -47,6 +47,10 @@ struct Perm_DAG {
     using Nodes_type = std::unordered_map<G, Decomps_type>;
 
     Nodes_type nodes;
+
+    // Copying would invalidate all the references, hence disabled.
+    Perm_DAG(Perm_DAG&) = delete;
+    Perm_DAG& operator=(Perm_DAG&) = delete;
 };
 
 
