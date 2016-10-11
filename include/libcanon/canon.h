@@ -5,6 +5,7 @@
 #ifndef LIBCANON_CANON_H
 #define LIBCANON_CANON_H
 
+#include<tuple>
 #include<unordered_map>
 
 #include<libcanon/internal/utils.h>
@@ -63,6 +64,32 @@ concept bool Canonicalizable = requires {
 template<typename G, typename C>
 concept bool Tractable = requires (G group, C caner) {
     { caner.get_full_coset(group) } -> typename C::Coset_type;
+};
+
+
+/**
+ * Canonicalize the combinatorial object.
+ *
+ * The given combinatorial object will be canonicalized by successive refinement
+ * of its isomorphism group.
+ *
+ */
+
+template<typename O, typename G, typename C>
+auto canonicalize(const O& obj, const G& isom_grp, C& caner)
+requires Canonicalizable<O, C> && Tractable<G, C>
+{
+    // Initialize the container for the automorphism group.
+    auto full_group = caner.get_full_coset(isom_grp);
+
+    // Create the lazy generator of the candidates.
+    internal::Candidates<Obj, Refiner> candidates{obj, full_group, caner};
+
+    // Choose the canonical isomorph and get the automorphism group.
+    return std::make_tuple(
+        caner.choose(candidates.cbegin(), candidates.cend()),
+        std::move(candidates.get_aut())
+    );
 };
 
 }  // End namespace libcanon.
