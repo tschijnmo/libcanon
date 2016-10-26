@@ -14,25 +14,29 @@
 namespace libcanon::internal {
 
 //
-// Concepts related to iterator and range.
+// Concepts related to iterator and iterable.
 //
-// They are sure going to be removed when the C++ standard moves forward.
+// They are mainly mimicked and simplified version of ReadableIterator and Range
+// tailored to the special needs of libcanon.  Sure they are going to be removed
+// when the C++ standard moves forward.
 
-template<typename I, typename E, typename V>
-concept bool Simple_iterator = requires (I iter, E end) {
-    { ++iter } -> &I;
-    { *iter } -> V;
-    { iter != end } -> bool;
+template<typename I, typename S, typename V>
+concept bool Simple_iterator = requires (I iter, S sentinel) {
+    { ++iter } -> I&;
+    { *iter } -> const V&;
+    { iter != sentinel } -> bool;
 };
 
-template<typename R, typename V>
-concept bool Range_of = requires (R range) {
-    { begin(range) };
-    { end(range) };
-    requires Simple_iterator<
-        std::remove_reference_t<decltype(begin(range))>,
-        std::remove_reference_t<decltype(end(range))>, V
-    >;
+template<typename T>
+using iterator_t = decltype(begin(std::declval<T&>()));
+template<typename T>
+using sentinel_t = decltype(end(std::declval<T&>()));
+
+template<typename I, typename V>
+concept bool Simple_iterable = requires {
+    typename iterator_t<I>;
+    typename sentinel_t<I>;
+    requires Simple_iterator<iterator_t<I>, sentinel_t<I>, V>;
 };
 
 
