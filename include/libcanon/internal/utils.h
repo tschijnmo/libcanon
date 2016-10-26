@@ -53,7 +53,7 @@ concept bool Simple_iterable = requires {
  */
 
 template<typename T, typename R>
-auto get_key_iter(const T& container, R (T::*method)())
+auto get_key_iter(const T& container, R (T::*method)() const)
 {
     auto iter = (container.*method)();
     return boost::make_transform_iterator(iter, [](auto&& i) {
@@ -69,7 +69,7 @@ auto get_key_iter(const T& container, R (T::*method)())
 template <typename T>
 auto get_key_cbegin(const T& container)
 {
-    return get_key_iter(container, T::cbegin);
+    return get_key_iter(container, &T::cbegin);
 }
 
 
@@ -79,7 +79,7 @@ auto get_key_cbegin(const T& container)
 template <typename T>
 auto get_key_cend(const T& container)
 {
-    return get_key_iter(container, T::cend);
+    return get_key_iter(container, &T::cend);
 }
 
 }
