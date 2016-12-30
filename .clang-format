@@ -2,5 +2,6 @@
 Language: Cpp
 BasedOnStyle: WebKit
 Standard: Cpp11
+ColumnLimit: 80
 ...
 
