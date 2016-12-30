@@ -63,6 +63,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include <libcanon/utils.h>
+
 namespace libcanon {
 
 //
@@ -73,24 +75,7 @@ namespace libcanon {
 // clang-format off
 
 //
-// Simple iterable concept.
-//
-// This is certainly going to be removed when the range standard library goes
-// forward.
-//
-
-template<typename I, typename T>
-concept bool SimpleIterable = requires (I iterable) {
-    { begin(i) };
-    { end(i) };
-    { ++begin(i) };
-    { begin(i) != end(i) } -> bool;
-    { *begin(i) } -> T&&;
-}
-
-
-//
-// The actual refiner concept.
+// The refiner concept.
 // 
 
 template<typename R>
@@ -105,7 +90,7 @@ concept bool Refiner = requires () {
         typename R::Transv* target_transv, typename R::Container container, 
         typename R::Perm perm, typename R::Perm perm2) {
     // For refiner itself.
-    { refiner.refine(coset) } -> SimpleIterable<typename R::Coset>;
+    { refiner.refine(coset) } -> Simple_iterable<typename R::Coset>;
     { refiner.is_leaf(coset) } -> bool;
     { refiner.get_a_perm(coset) } -> typename R::Perm;
 
