@@ -168,6 +168,44 @@ private:
     A acc;
 };
 
+template <typename T> class Inv_perm : public Perm_expr<Inv_perm<T>> {
+public:
+    Inv_perm(const T& op)
+        : operand{ op }
+    {
+    }
+
+    //
+    // Permutation expression operations.
+    //
+
+    /** Gets the pre-image of a point. */
+    friend Point operator>>(const Inv_perm& perm, Point point)
+    {
+        return perm.operand << point;
+    }
+
+    /** Gets the image of a point. */
+    friend Point operator<<(const Inv_perm& perm, Point point)
+    {
+        return perm.operand >> point;
+    }
+
+    /** Gets the accompanied action of a permutation. */
+    auto get_acc() const { return operand.get_acc() | operand.get_acc(); }
+
+    /** Gets the size of the permutation domain */
+    size_t get_size() const { return operand.size(); }
+
+private:
+    const T& operand;
+};
+
+template <typename T> Inv_perm<T> operator~(const Perm_expr<T>& expr)
+{
+    return Inv_perm<T>(expr);
+}
+
 //
 // Transversal adaptation
 // ----------------------
