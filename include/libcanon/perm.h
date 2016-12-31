@@ -282,7 +282,7 @@ namespace internal {
  *
  * - It needs to be an iterable of permutations in the transversal system.
  *   Note that identity should be skipped in the iteration, since it is always
- *   resent.
+ *   present.
  *
  * - It needs to have an attribute named `next` for a unique pointer to the
  *   next level of subgroup.
