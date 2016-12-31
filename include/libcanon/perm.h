@@ -22,6 +22,61 @@
 namespace libcanon {
 
 //
+// Permutation data type
+// ---------------------
+//
+
+/** Type for a point to be permuted by a permutation.
+ *
+ * Here points are labelled simply by the first few natural numbers.  The
+ * built-in `size_t` is used for easy indexing of the array for pre-image and
+ * image arrays.
+ */
+using Point = size_t;
+
+/** Base type for permutation expressions.
+ *
+ * This base type is for all kinds of expressions formed from permutations.
+ * The type parameter should be set to the actual type.
+ *
+ * For permutations $g$, $h$ and a point $\alpha$, operation supported are
+ *
+ * - `g << alpha` for the image of $\alpha$ under this permutation.
+ *
+ * - `g >> alpha` for the pre-image of $\alpha$.
+ *
+ * These two notations are motivated by putting the resulted point to the left
+ * of the expression, which is common in assignment expressions in imperative
+ * programming languages.
+ *
+ * Also supported are `~` operator for inversion and `|` operator for
+ * multiplication.
+ *
+ */
+
+template <typename T> class Perm_expr {
+
+public:
+    /** Gets the pre-image of a point. */
+    friend Point operator>>(const Perm_expr& perm, Point point)
+    {
+        return static_cast<const T&>(perm) >> point;
+    }
+
+    /** Gets the image of a point. */
+    friend Point operator<<(const Perm_expr& perm, Point point)
+    {
+        return static_cast<const T&>(perm) << point;
+    }
+
+    /** Gets the accompanied action of a permutation. */
+    auto get_acc() const { return static_cast<const T&>(*this).acc(); }
+
+    /** Gets the size of the permutation domain */
+    size_t get_size() const { return static_cast<const T&>(*this).size(); }
+};
+
+//
 // Transversal adaptation
 // ----------------------
 //
