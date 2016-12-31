@@ -233,10 +233,11 @@ namespace internal {
                 aut->next
                     = curr->add_all_candidates(std::move(aut.next), container);
 
-                auto anchor = *(curr->base); // Make a copy.
+                const auto& anchor = *(curr->base);
                 for (const auto& i : aut) {
                     children.erase(anchor >> i);
                 }
+                children.erase(anchor);
 
                 if (!children.empty()) {
                     curr = std::make_unique<Exp_path>(
@@ -325,6 +326,7 @@ auto add_all_candidates(R& refiner, const typename R::Structure& obj,
         for (const auto& i : aut) {
             pending.erase(child >> i);
         }
+        pending.erase(child);
     }
 
     return aut;
