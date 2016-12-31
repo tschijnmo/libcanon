@@ -13,8 +13,10 @@
 #define LIBCANON_PERM_H
 
 #include <algorithm>
+#include <cassert>
 #include <iterator>
 #include <memory>
+#include <type_traits>
 #include <vector>
 
 #include <libcanon/utils.h>
@@ -216,6 +218,71 @@ private:
 template <typename T> Inv_perm<T> operator~(const Perm_expr<T>& expr)
 {
     return Inv_perm<T>(expr);
+}
+
+/** Expression for the product of two permutation expressions.
+ *
+ * The two expressions does not have to be atomic.  Any permutation expression
+ * works.
+ */
+
+template <typename T1, typename T2>
+class Perm_prod : public Perm_expr<Perm_prod<T1, T2>> {
+public:
+    Perm_prod(const T1& left_input, const T2& right_input)
+        : left{ left_input }
+        , right{ right_input }
+    {
+    }
+
+    //
+    // Permutation expression operations.
+    //
+
+    /** Gets the pre-image of a point. */
+    friend Point operator>>(const Perm_prod& perm, Point point)
+    {
+        return perm.left >> (perm.right >> point);
+    }
+
+    /** Gets the image of a point. */
+    friend Point operator<<(const Perm_prod& perm, Point point)
+    {
+        return perm.left << (perm.right << point);
+    }
+
+    /** Gets the accompanied action of a permutation. */
+    auto get_acc() const { return left.get_acc() ^ right.get_acc(); }
+
+    /** Gets the size of the permutation domain
+     *
+     * No checking is done here.  Checking are performed during (before) the
+     * construction.
+     */
+
+    size_t get_size() const { return left.size(); }
+private:
+    const T1& left;
+    const T2& right;
+};
+
+/** Multiplies to permutation expression.
+ *
+ * The result is a lazily-evaluated permutation expression.  Note that the two
+ * operands need to have the same size and accompanied action type.
+ */
+
+template <typename T1, typename T2>
+Perm_prod<T1, T2> operator|(
+    const Perm_expr<T1>& left, const Perm_expr<T2>& right)
+{
+    static_assert(std::is_same<decltype(left.get_acc()),
+                      decltype(right.get_acc())>::value,
+        "Two operands need to have the same accompanied action type.");
+    assert(left.get_size() == right.get_size()
+        && "Two operands need act on the same domain");
+
+    return Perm_prod<T1, T2>(left, right);
 }
 
 //
