@@ -168,6 +168,12 @@ private:
     A acc;
 };
 
+/** Expression for inverted permutations.
+ *
+ * This is a lazy expression for inverted permutations.  A constant reference
+ * is stored for its operand.
+ */
+
 template <typename T> class Inv_perm : public Perm_expr<Inv_perm<T>> {
 public:
     Inv_perm(const T& op)
@@ -200,6 +206,12 @@ public:
 private:
     const T& operand;
 };
+
+/** Inverts a permutation expression.
+ *
+ * The familiar notation of `~` is used.  The result is a lazily evaluated
+ * inversion expression.
+ */
 
 template <typename T> Inv_perm<T> operator~(const Perm_expr<T>& expr)
 {
