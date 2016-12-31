@@ -1,63 +1,160 @@
-/**
+/** \file
+ *
  * General utilities for permutation groups.
+ *
+ * This module contains some general data structure and manipulations for
+ * permutation groups.  Most importantly, \ref Perm is a fairly generic data
+ * type for permutations.  And \ref adapt_transv is a generic function to adapt
+ * transversal systems.
+ *
  */
-
 
 #ifndef LIBCANON_PERM_H
 #define LIBCANON_PERM_H
 
-#include<vector>
-#include<unordered_map>
+#include <algorithm>
+#include <iterator>
+#include <memory>
+#include <vector>
 
+#include <libcanon/utils.h>
+
+namespace libcanon {
 
 //
-// The container of DAG for storing permutation groups
-// ===================================================
+// Transversal adaptation
+// ----------------------
 //
 
+#ifdef __cpp_concepts
+// clang-format off
 
-template<typename G, typename CP>
-class Perm_decomp;  // Forward declaration.
+template <typename T>
+concept bool Transv = requires () {
+    typename T::Perm;
+} && Simple_iterable<Transv, typename T::Perm> && requires (
+    T transv, typename T::Perm perm) {
+    { transv.next } -> std::unique_ptr<T>;
+    { transv.has(perm) } -> bool;
+    { transv.get_repr(perm) } -> const T::Perm*;
+    { transv.insert(perm) };
+};
 
+// clang-format on
+#endif
 
-/**
- * Permutation groups given as directed cyclic graph.
+//
+// Utilities for the transversal adaptation.
+//
+
+namespace internal {
+
+    /**
+     * Tests if a transversal is a leaf.
+     *
+     * A leaf transversal is one without a next transversal.
+     */
+
+    template <typename T> bool is_leaf_transv(const T& transv)
+    {
+        return transv.next == nullptr;
+    }
+
+    /** Process a permutation for a transversal.
+     *
+     * This is the core function for transversal system adaptation.  If the
+     * given permutation is in the subgroup next level, it will be added to the
+     * container for permutations to pass.  Or it will be added to the given
+     * transversal container if no representative is already present for its
+     * coset.
+     */
+
+    template <typename P, typename T, typename V>
+    void proc_perm_for_transv(P&& perm, T& transv, V& perms_to_pass)
+    {
+        if (transv.next->has(perm)) {
+            perms_to_pass.push_back(std::forward<P>(perm));
+        } else {
+            auto repr = transv.get_repr(perm);
+            if (repr == nullptr) {
+                transv.insert(std::forward<P>(perm));
+            }
+        }
+    }
+
+} // End namespace internal.
+
+/** Adapts a transversal system into another.
  *
- * This DAG is designed to be the container to hold permutation groups given by
- * multiple towers of subgroups and coset transversals.  Essentially, the nodes
- * in this DAG are the subgroups of the given permutation group.  And each node
- * could contain possibly multiple subgroups of it along with a transversal over
- * all of its cosets.  Here a pair of a subgroup and the corresponding
- * transversal is called a decomposition.  This is a generalization of the tower
- * of subgroup data structure commonly seen in computational group theory.
+ * The input and output transversal systems are assumed to be for the same
+ * group up to the same leaf.  Note that this function takes the ownership of
+ * the input transversal and deallocates it after the adaptation.
  *
- * For generality, this container is fully generic.  The subgroup can be
- * specified in any suitable way, and the transversals can contain either
- * permutations or some description of the cosets.
+ * The transversals can be any data type satisfying the concept of a
+ * transversal system `Transv`.  Most importantly,
+ *
+ * - A type `Perm` needs to be defined for the permutation type it contains.
+ *
+ * - It needs to be an iterable of permutations in the transversal system.
+ *   Note that identity should be skipped in the iteration, since it is always
+ *   resent.
+ *
+ * - It needs to have an attribute named `next` for a unique pointer to the
+ *   next level of subgroup.
+ *
+ * - It needs to support methods `has`, `get_repr`, and `insert`, to test if a
+ *   permutation is in the subgroup of the transversal system, to get a
+ *   constant pointer to a coset representation (NULL if not present), and to
+ *   insert a permutation into the transversal.
  *
  */
 
-template<typename G, typename T>
-struct Perm_DAG {
-    using Group_type = G;
-    using Transv_type = T;
-    using Decomp_type = Perm_decomp<G, T>;
-    using Decomps_type = std::vector<Decomp_type>;
-    using Node_type = decltype(nodes)::value_type;
-    using Nodes_type = std::unordered_map<G, Decomps_type>;
+template <typename T> void adapt_trasv(std::unique_ptr<T> input, T& output)
+{
+    // Gather all transversals to loop over them in reverse order.
+    std::vector<T*> inputs{};
+    T* curr = input.get();
+    while (!internal::is_leaf_transv(*curr)) {
+        inputs.push_back(curr);
+        curr = curr->next.get();
+    }
 
-    Nodes_type nodes;
+    for (auto curr_input = inputs.rbegin(); curr_input != input.rend();
+         ++curr_input) {
 
-    // Copying would invalidate all the references, hence disabled.
-    Perm_DAG(Perm_DAG&) = delete;
-    Perm_DAG& operator=(Perm_DAG&) = delete;
-};
+        using Perm_vector = std::vector<typename T::Perm>;
+        Perm_vector passed_perms{};
+        for (auto& i : *curr_input) {
+            passed_perms.push_back(std::move(i));
+        }
+        Perm_vector perms_to_pass{};
 
+        T* curr_output = &output;
+        while (!internal::is_leaf_transv(*curr_output)) {
 
-template<typename G, typename T>
-struct Perm_decomp {
-    const Perm_DAG<G, T>::Node_type& child;
-    std::vector<T> transv;
-};
+            std::vector<const typename T::Perm*> existing{};
+            std::transform(begin(*curr_output), end(*curr_output),
+                std::back_inserter(existing), [](auto& perm) { return &perm; });
 
-#endif //LIBCANON_PERM_H
+            for (const auto& passed_perm : passed_perms) {
+                for (auto existing_perm : existing) {
+                    internal::proc_perm_for_transv(passed_perm | *existing_perm,
+                        *curr_output, perms_to_pass);
+                }
+                internal::proc_perm_for_transv(
+                    std::move(passed_perm), *curr_output, perms_to_pass);
+            }
+
+            curr_output = curr_output->next.get();
+            passed_perms.clear();
+            passed_perms.swap(perms_to_pass);
+
+        } // End loop output level.
+    } // End loop input level.
+
+    return;
+}
+
+} // End namespace libcanon.
+
+#endif // LIBCANON_PERM_H
