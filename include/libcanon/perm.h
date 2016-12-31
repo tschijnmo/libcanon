@@ -76,6 +76,98 @@ public:
     size_t get_size() const { return static_cast<const T&>(*this).size(); }
 };
 
+/** Atomic permutation type.
+ *
+ * Here a permutation is stored redundantly by two arrays for both the preimage
+ * of all points and the post image of all points.  Also a permutation can be
+ * accompanied by an action, which is going to be composed by `^` for
+ * multiplication and `|` with itself for inversion.  In this way, when the
+ * accompanied action is a product of the $\mathbb{Z}_2$ group encoded as
+ * integral types, nothing needs to be added.
+ */
+
+template <typename A> class Perm : public Perm_expr<Perm<A>> {
+public:
+    /** Constructs a permutation from a preimage array. */
+    template <typename Input_it>
+    Perm(Input_it begin, Input_it end, A acc_input = 0)
+        : image{}
+        , pre_image{}
+        , acc{ acc_input }
+    {
+        // To avoid the ambiguity in vector constructor when the iterator type
+        // is integral.
+        std::copy(begin, end, std::back_inserter(pre_image));
+
+        size = pre_image.size();
+        image.resize(size);
+        for (size_t i = 0; i < size; i++) {
+            image[pre_image[i]] = i;
+        }
+    }
+
+    //  Here we need to put some default explicitly so that they will not be
+    //  override by the generic constructor from expressions.
+
+    /** Copy-constructs a permutation. */
+    Perm(const Perm& perm) = default;
+
+    /** Move-constructs a permutation */
+    Perm(Perm&& perm) = default;
+
+    /** Constructs a permutation from an expression. */
+    template <typename T>
+    Perm(const Perm_expr<T>& expr)
+        : size{ expr.size() }
+        , image{ size }
+        , pre_image{ size }
+        , acc{ expr.get_acc() }
+    {
+        // Duplicate loops for cache friendliness.
+        size_t i;
+
+        for (i = 0; i < size; ++i) {
+            image[i] = expr << i;
+        }
+
+        for (i = 0; i < size; ++i) {
+            pre_image[i] = expr >> i;
+        }
+    }
+
+    //
+    // Permutation expression operations.
+    //
+
+    /** Gets the pre-image of a point. */
+    friend Point operator>>(const Perm& perm, Point point)
+    {
+        return perm.pre_image[point];
+    }
+
+    /** Gets the image of a point. */
+    friend Point operator<<(const Perm& perm, Point point)
+    {
+        return perm.image[point];
+    }
+
+    /** Gets the accompanied action of a permutation. */
+    auto get_acc() const { return acc; }
+
+    /** Gets the size of the permutation domain */
+    size_t get_size() const { return image.size(); }
+
+    // Permutations are immutable.
+    Perm& operator=(const Perm& perm) = delete;
+    Perm& operator=(Perm&& perm) = delete;
+
+private:
+    size_t size;
+    std::vector<size_t> image;
+    std::vector<size_t> pre_image;
+    A acc;
+};
+
 //
 // Transversal adaptation
 // ----------------------
