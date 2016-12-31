@@ -178,8 +178,8 @@ private:
 
 template <typename T> class Inv_perm : public Perm_expr<Inv_perm<T>> {
 public:
-    Inv_perm(const T& op)
-        : operand{ op }
+    Inv_perm(const T& operand)
+        : operand{ operand }
     {
     }
 
@@ -215,7 +215,7 @@ private:
  * inversion expression.
  */
 
-template <typename T> Inv_perm<T> operator~(const Perm_expr<T>& expr)
+template <typename T> auto operator~(const Perm_expr<T>& expr)
 {
     return Inv_perm<T>(expr);
 }
@@ -229,9 +229,9 @@ template <typename T> Inv_perm<T> operator~(const Perm_expr<T>& expr)
 template <typename T1, typename T2>
 class Perm_prod : public Perm_expr<Perm_prod<T1, T2>> {
 public:
-    Perm_prod(const T1& left_input, const T2& right_input)
-        : left{ left_input }
-        , right{ right_input }
+    Perm_prod(const T1& left, const T2& right)
+        : left{ left }
+        , right{ right }
     {
     }
 
@@ -273,8 +273,7 @@ private:
  */
 
 template <typename T1, typename T2>
-Perm_prod<T1, T2> operator|(
-    const Perm_expr<T1>& left, const Perm_expr<T2>& right)
+auto operator|(const Perm_expr<T1>& left, const Perm_expr<T2>& right)
 {
     static_assert(std::is_same<decltype(left.get_acc()),
                       decltype(right.get_acc())>::value,
