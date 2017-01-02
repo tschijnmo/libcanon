@@ -16,6 +16,7 @@
 #include <cassert>
 #include <iterator>
 #include <memory>
+#include <numeric>
 #include <type_traits>
 #include <vector>
 
@@ -102,10 +103,7 @@ public:
         std::copy(begin, end, std::back_inserter(pre_image));
 
         size = pre_image.size();
-        image.resize(size);
-        for (size_t i = 0; i < size; i++) {
-            image[pre_image[i]] = i;
-        }
+        set_image();
     }
 
     //  Here we need to put some default explicitly so that they will not be
@@ -137,6 +135,51 @@ public:
         }
     }
 
+    /** Constructs a permutation from a chain of permutations.
+     *
+     * Here the result will be the multiplication of all permutation in the
+     * chain, which is given as an iterator over *pointers* to permutations.
+     *
+     * Compared with implementation based on expression templates, this
+     * specialized function is a lot more cache-friendly.
+     */
+
+    template <typename Input_it>
+    Perm(size_t size, Input_it begin, Input_it end)
+        : size{ size }
+        , image{}
+        , pre_image{}
+    {
+        Point_vec pts1(size);
+        Point_vec pts2(size);
+        std::iota(pts1.begin(), pts1.end(), 0);
+
+        Point_vec* src = &pts1;
+        Point_vec* dest = &pts2;
+
+        bool got_acc = false;
+
+        std::for_each(begin, end, [&](auto element) {
+            const Perm& perm{ *element };
+            // Invalid iterator given if error happens here.
+
+            if (got_acc) {
+                acc = acc ^ perm.get_acc();
+            } else {
+                acc = perm.get_acc();
+            }
+
+            for (size_t i = 0; i < size; ++i) {
+                (*dest)[perm << i] = (*src)[i];
+            }
+
+            std::swap(src, dest);
+        });
+
+        pre_image = std::move(*src);
+        set_image();
+    }
+
     //
     // Permutation expression operations.
     //
@@ -163,10 +206,34 @@ public:
     Perm& operator=(const Perm& perm) = delete;
     Perm& operator=(Perm&& perm) = delete;
 
+    /** Gets the earliest point moved by the permutation.
+     *
+     * A point `size` will be returned if the permutation is identity.
+     */
+
+    Point get_earliest_moved() const
+    {
+        for (Point i = 0; i < size; ++i) {
+            if (i != *this << i)
+                return i;
+        }
+        return size;
+    }
+
 private:
+    /** Sets the image array from the pre-image array */
+    void set_image()
+    {
+        image.resize(size);
+        for (size_t i = 0; i < size; i++) {
+            image[pre_image[i]] = i;
+        }
+    }
+
     size_t size;
-    std::vector<size_t> image;
-    std::vector<size_t> pre_image;
+    using Point_vec = std::vector<Point>;
+    Point_vec image;
+    Point_vec pre_image;
     A acc;
 };
 
