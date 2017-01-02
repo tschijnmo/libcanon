@@ -25,7 +25,7 @@ namespace libcanon {
  * that is moved into the target.
  */
 
-template <typename P> class SimsTransv {
+template <typename P> class Sims_transv {
 public:
     //
     // Required by transversal interface
@@ -35,7 +35,7 @@ public:
     using Perm = P;
 
     /** Unique pointer to the next level of transversal */
-    std::unique_ptr<SimsTransv> next;
+    std::unique_ptr<Sims_transv> next;
 
     /** Tests if the permutation could be in this subgroup. */
     bool has(const P& perm) { return target == (perm << target); }
@@ -97,7 +97,7 @@ public:
      * Creates a transversal system.
      */
 
-    SimsTransv(size_t target, size_t size)
+    Sims_transv(size_t target, size_t size)
         : target{ target }
         , transv{ size }
     {
@@ -204,8 +204,8 @@ namespace internal {
      */
 
     template <typename P>
-    std::vector<P> form_schreier_gens(
-        size_t size, const SimsTransv<P>& tentative, const std::vector<P>& gens)
+    std::vector<P> form_schreier_gens(size_t size,
+        const Sims_transv<P>& tentative, const std::vector<P>& gens)
     {
         Jerrum_container<P> result{ size };
 
@@ -220,7 +220,7 @@ namespace internal {
         };
 
         for (const auto& i : gens) {
-            add2result(i);  // Identity is not in tentative.
+            add2result(i); // Identity is not in tentative.
             for (const auto& j : tentative) {
                 add2result(j | i);
             }
@@ -238,7 +238,7 @@ namespace internal {
      */
 
     template <typename P>
-    std::unique_ptr<SimsTransv<P>> build_sims_transv(
+    std::unique_ptr<Sims_transv<P>> build_sims_transv(
         Point begin, size_t size, std::vector<P>& gens)
     {
 
@@ -247,13 +247,13 @@ namespace internal {
 
         std::vector<Point> orbit{};
         orbit.reserve(size);
-        std::unique_ptr<SimsTransv<P>> tentative;
+        std::unique_ptr<Sims_transv<P>> tentative;
 
         for (size_t target = begin; target < size; ++target) {
             orbit.clear();
             orbit.push_back(target);
 
-            tentative = std::make_unique<SimsTransv<P>>(target, size);
+            tentative = std::make_unique<Sims_transv<P>>(target, size);
 
             size_t curr_idx = 0;
             while (curr_idx < orbit.size()) {
@@ -304,9 +304,9 @@ namespace internal {
  */
 
 template <typename P>
-std::unique_ptr<SimsTransv<P>> build_sims_sys(size_t size, std::vector<P> gens)
+std::unique_ptr<Sims_transv<P>> build_sims_sys(size_t size, std::vector<P> gens)
 {
-    using Ptr2transv = std::unique_ptr<SimsTransv<P>>;
+    using Ptr2transv = std::unique_ptr<Sims_transv<P>>;
 
     Ptr2transv head;
     Ptr2transv* dest = &head;
