@@ -108,6 +108,75 @@ public:
 private:
     const Point target;
     std::vector<std::unique_ptr<P>> transv;
+
+    //
+    // Iteration over a transversal.
+    //
+
+    /**
+     * Iterator type for the sims transversal system.
+     *
+     * This is a simple forward iterator.
+     */
+
+    class Sims_transv_it {
+
+        /** Constructs an iterator. */
+        Sims_transv_it(size_t curr, const Sims_transv& transv)
+            : curr{ curr }
+            , transv{ transv }
+        {
+            if (curr == 0)
+                find_next_present();
+        }
+
+        Sims_transv_it& operator++()
+        {
+            ++curr;
+            find_next_present();
+            return *this;
+        }
+
+        P& operator*() { return *(transv.transv[curr]); }
+
+        bool operator==(const Sims_transv_it& sentinel)
+        {
+            return (curr == sentinel.curr);
+        }
+
+        bool operator!=(const Sims_transv_it& sentinel)
+        {
+            return (curr != sentinel.curr);
+        }
+
+    private:
+        size_t curr;
+        const Sims_transv& transv;
+
+        /** Increments the current index to a one with permutation.
+         *
+         * If the current index has a permutation, nothing will be done.  If no
+         * more permutation is available, the index will be set to the end.
+         */
+
+        void find_next_present()
+        {
+            while (!transv.get_repr(curr) && curr < transv.get_size()) {
+                ++curr;
+            }
+        }
+    };
+
+public:
+    friend Sims_transv_it begin(const Sims_transv& container)
+    {
+        return { 0, container };
+    }
+
+    friend Sims_transv_it end(const Sims_transv& container)
+    {
+        return { container.transv.size(), container };
+    }
 };
 
 //
