@@ -17,6 +17,15 @@
 
 namespace libcanon {
 
+//
+// Generic code for Sims transversal systems
+// -----------------------------------------
+//
+// The code in this section can be used not only for string canonicalization
+// problem, it can be used for other problem as well, since it is fully
+// general.
+//
+
 /** Transversal systems for pointwise stabilisers.
  *
  * This class is designed to hold transversal systems for subgroup chains of
@@ -390,6 +399,15 @@ std::unique_ptr<Sims_transv<P>> build_sims_sys(size_t size, std::vector<P> gens)
 
     return std::move(head);
 }
+
+
+//
+// String canonicalization problem
+// -------------------------------
+//
+// By using the code for Sims transversal system, the code in this section can
+// be used for the canonicalization of strings under a given permutation group.
+//
 
 } // End namespace libcanon
 #endif // LIBCANON_STRING_CANON_H
