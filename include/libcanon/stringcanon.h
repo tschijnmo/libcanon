@@ -419,13 +419,21 @@ std::unique_ptr<Sims_transv<P>> build_sims_sys(size_t size, std::vector<P> gens)
 
 template <typename P> class Sims_coset {
 public:
-    /** Constructs a Sims coset. */
+    /** Constructs a Sims coset.
+     *
+     * \param prev The previous level of Sims coset.
+     * \param curr The current level of Sims transversal.
+     * \param selected The point selected to be moved into the target.  Note
+     * that it needs to be a point in the orbit.
+     */
 
     Sims_coset(
-        const Sims_coset* prev, const P& curr, const Sims_transv<P>* next)
+        const Sims_coset* prev, const Sims_transv<P>& curr, Point selected)
         : prev{ prev }
         , curr{ curr }
-        , next{ next }
+        , selected{ selected }
+        , perm{ *curr.get_repr(selected) }
+        , next{ curr.next->get() }
     {
     }
 
@@ -435,17 +443,42 @@ public:
     friend Point operator>>(const Sims_coset* coset, Point point)
     {
         for (; coset != nullptr; coset = coset->prev) {
-            point = coset->curr >> point;
+            point = coset->perm >> point;
         }
         return point;
     }
+
+    /** Tests if two cosets are equal.
+     *
+     * For performance reason, here we just compare the selected point and
+     * assume that all the rest matches.
+     */
+
+    bool operator==(const Sims_coset& other)
+    {
+        return this->selected == other.selected;
+    }
+
+    /** Computes the hash of the coset.
+     *
+     *  In the same vein as the equality comparison, here we just use the point
+     *  moved into the target as the hash.
+     */
+
+    size_t hash() const { return selected; }
 
 private:
     /** Pointer to the previous level of coset, nullptr for first level. */
     const Sims_coset* prev;
 
+    /** The current level of transversal. */
+    const Sims_transv<P>& curr;
+
+    /** The label for the coset. */
+    Point selected;
+
     /** Reference to the permutation chosen by this level of coset. */
-    const P& curr;
+    const P& perm;
 
     /** Pointer to the next level of subgroup. */
     const Sims_transv<P>* next;
