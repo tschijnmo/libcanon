@@ -400,7 +400,6 @@ std::unique_ptr<Sims_transv<P>> build_sims_sys(size_t size, std::vector<P> gens)
     return std::move(head);
 }
 
-
 //
 // String canonicalization problem
 // -------------------------------
@@ -408,6 +407,49 @@ std::unique_ptr<Sims_transv<P>> build_sims_sys(size_t size, std::vector<P> gens)
 // By using the code for Sims transversal system, the code in this section can
 // be used for the canonicalization of strings under a given permutation group.
 //
+
+/** Cosets for Sims transversal system.
+ *
+ * A left coset for one level of  Sims transversal system is basically a
+ * pointer to a permutation with a reference to the next level of Sims
+ * transversal.  Here we also have a pointer to the previous level of coset
+ * that the current coset is in.  The product of all these permutations gives a
+ * permutation in the actual coset.
+ */
+
+template <typename P> class Sims_coset {
+public:
+    /** Constructs a Sims coset. */
+
+    Sims_coset(
+        const Sims_coset* prev, const P& curr, const Sims_transv<P>* next)
+        : prev{ prev }
+        , curr{ curr }
+        , next{ next }
+    {
+    }
+
+    /** Gets the pre-image of a point by the permutation labelling this coset.
+     */
+
+    friend Point operator>>(const Sims_coset* coset, Point point)
+    {
+        for (; coset != nullptr; coset = coset->prev) {
+            point = coset->curr >> point;
+        }
+        return point;
+    }
+
+private:
+    /** Pointer to the previous level of coset, nullptr for first level. */
+    const Sims_coset* prev;
+
+    /** Reference to the permutation chosen by this level of coset. */
+    const P& curr;
+
+    /** Pointer to the next level of subgroup. */
+    const Sims_transv<P>* next;
+};
 
 } // End namespace libcanon
 #endif // LIBCANON_STRING_CANON_H
