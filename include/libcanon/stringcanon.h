@@ -445,6 +445,82 @@ std::unique_ptr<Sims_transv<P>> build_sims_sys(size_t size, std::vector<P> gens)
 // be used for the canonicalization of strings under a given permutation group.
 //
 
+/** Base type for string combinatorial structures.
+ *
+ * A string combinatorial structure need to,
+ *
+ * 1. Have method `size` to get the size of the structure.
+ *
+ * 2. Able to be constructed from a size.
+ *
+ * 3. Indexable by `[]`, to get the actual alphabet at the given index, also
+ * indexable by `()`, to get the colour of the alphabet at the given index.
+ * Note that the colour will be used for equality comparison by `==` and order
+ * comparison by `<`.
+ *
+ * Then by sub classing the specialization of this template with the actual
+ * type will make the equality and lexicographical comparison based on the
+ * actual colour available.
+ */
+
+template <typename S> class String_structure {
+public:
+    /** The actual data type for string structures. */
+
+    using Structure = S;
+
+    /** Gets the size of the string */
+
+    size_t size() const { return static_cast<const S&>(*this).size(); }
+
+    /** Gets the alphabet at the given index */
+
+    auto& operator[](Point idx) const
+    {
+        return static_cast<const S&>(*this)[idx];
+    }
+
+    /** Gets the colour of the alphabet at the given index */
+
+    auto operator()(Point idx) const
+    {
+        return static_cast<const S&>(*this)(idx);
+    }
+
+    /** Lexicographical quality comparison based on colour. */
+
+    bool operator==(const String_structure& other) const
+    {
+        auto size = this->size();
+        if (other.size() != size)
+            return false;
+        for (size_t i = 0; i < size; ++i) {
+            if (!((*this)(i) == other(i)))
+                return false;
+        }
+        return true;
+    }
+
+    /** Lexicographical ordering based on colour */
+
+    bool operator<(const String_structure& other) const
+    {
+        auto size = this->size();
+        auto other_size = other.size();
+
+        if (size != other_size)
+            return size < other_size;
+
+        for (size_t i = 0; i < size; ++i) {
+            if ((*this)(i) < other(i))
+                return true;
+        }
+
+        // Now we have equal strings.
+        return false;
+    }
+};
+
 /** Cosets for Sims transversal system.
  *
  * A left coset for one level of  Sims transversal system is basically a
@@ -595,7 +671,7 @@ private:
  * the contents in the string.
  */
 
-template <typename S, typename P, typename C> class Sims_refiner {
+template <typename S, typename P> class Sims_refiner {
 public:
     //
     // Types required by the refiner protocol.
@@ -607,14 +683,9 @@ public:
     using Structure = S;
     using Container = std::unordered_map<S, P>;
 
-    /** Comparator for the alphabet.  */
-
-    using Alpha_comp = C;
-
     template <typename T>
-    Sims_refiner(size_t size, T&& comp)
+    Sims_refiner(size_t size)
         : size{ size }
-        , comp{ std::forward<T>(comp) }
     {
     }
 
@@ -633,17 +704,18 @@ public:
         Point target = coset.get_next()->get_target();
         // Only valid for non-leaf cosets.
 
-        // Find the points of minimum alphabet in the orbit.
-        Point min = coset >> target;
+        // Find all points of minimum colour in the orbit.
+        auto min = obj(coset >> target);
         children.emplace_back(coset, target);
 
         for (const auto& perm : coset.get_curr()) {
             Point src = perm >> target;
             Point orig = coset >> src;
-            if (comp.equals(orig, min)) {
+            auto colour = obj(orig);
+            if (colour == min) {
                 children.emplace_back(coset, src);
-            } else if (comp.less(orig, min)) {
-                min = orig;
+            } else if (colour < min) {
+                min = colour;
                 children.clear();
                 children.emplace_back(coset, src);
             }
@@ -690,23 +762,21 @@ public:
 
 private:
     size_t size;
-    C comp;
 };
 
 /** Canonicalize the given string.
  *
  * This is the main driver function for string canonicalization problem.  Note
  * that in addition to the other constrains, the combinatorial object needs to
- * be hashable, equality comparable, and has order `<` defined, which is better
- * compatible with the given comparator for the alphabet is used.
+ * satisfy the concept required in the template \ref String_structure.
  */
 
-template <typename S, typename P, typename C>
+template <typename S, typename P>
 std::pair<S, std::unique_ptr<Sims_transv<P>>> canon_string(
-    const S& input, const Sims_transv<P>& group, C&& comp)
+    const S& input, const Sims_transv<P>& group)
 {
-    using Refiner = Sims_refiner<S, P, C>;
-    Refiner refiner{ input.size(), std::forward<C>(comp) };
+    using Refiner = Sims_refiner<S, P>;
+    Refiner refiner{ input.size() };
     Sims_coset<P> whole_group(group);
     typename Refiner::Container container{};
 
