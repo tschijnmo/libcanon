@@ -86,7 +86,9 @@ public:
  * accompanied by an action, which is going to be composed by `^` for
  * multiplication and `|` with itself for inversion.  In this way, when the
  * accompanied action is a product of the $\mathbb{Z}_2$ group encoded as
- * integral types, nothing needs to be added.
+ * integral types, nothing needs to be added.  Also the type for accompanied
+ * action needs to be able to be constructed from integral zero for the
+ * identity action.
  */
 
 template <typename A> class Perm : public Perm_expr<Perm<A>> {
@@ -104,6 +106,16 @@ public:
 
         size = pre_image.size();
         set_image();
+    }
+
+    /** Creates an identity permutation */
+    Perm(size_t size)
+        : image(size)
+        , pre_image(size)
+        , acc{ 0 }
+    {
+        std::iota(image.begin(), image.end(), 0);
+        std::iota(pre_image.begin(), pre_image.end(), 0);
     }
 
     //  Here we need to put some default explicitly so that they will not be
