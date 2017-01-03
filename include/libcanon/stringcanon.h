@@ -14,8 +14,10 @@
 #include <memory>
 #include <numeric>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
+#include <libcanon/canon.h>
 #include <libcanon/perm.h>
 
 namespace libcanon {
@@ -658,6 +660,33 @@ private:
     size_t size;
     C comp;
 };
+
+/** Canonicalize the given string.
+ *
+ * This is the main driver function for string canonicalization problem.  Note
+ * that in addition to the other constrains, the combinatorial object needs to
+ * be hashable, equality comparable, and has order `<` defined, which is better
+ * compatible with the given comparator for the alphabet is used.
+ */
+
+template <typename S, typename P, typename C>
+std::pair<S, std::unique_ptr<Sims_transv<P>>> canon_string(
+    const S& input, const Sims_transv<P>& group, C&& comp)
+{
+    using Refiner = Sims_refiner<S, P, C>;
+    Refiner refiner{ input.size(), std::forward<C>(comp) };
+    Sims_coset<P> whole_group(group);
+    typename Refiner::Container container{};
+
+    auto aut = add_all_candidates(refiner, input, whole_group, container);
+
+    const auto& canon_form
+        = std::min_element(container.begin(), container.end(),
+            [](const auto& a, const auto& b) { return a.first < b.first; });
+
+    aut->conj(canon_form.second);
+    return {std::move(canon_form.first), std::move(aut)};
+}
 
 } // End namespace libcanon
 #endif // LIBCANON_STRING_CANON_H
