@@ -50,17 +50,7 @@ public:
     bool has(const P& perm) { return target == (perm << target); }
 
     /** Gets the coset representative of a permutation. */
-    const P* get_repr(const P& perm)
-    {
-        const auto& found = transv[perm >> target];
-
-        // Slight redundancy for clarity.
-        if (found) {
-            return found.get();
-        } else {
-            return nullptr;
-        }
-    }
+    const P* get_repr(const P& perm) { return get_repr(perm >> target); }
 
     /** Inserts a permutation into the transversal system
      *
@@ -100,7 +90,17 @@ public:
      * Gets a representative for the coset of moving the given point to target.
      */
 
-    const P* get_repr(Point point) { return transv[point].get(); }
+    const P* get_repr(Point point)
+    {
+        const auto& found = transv[point];
+
+        // Slight redundancy for clarity.
+        if (found) {
+            return found.get();
+        } else {
+            return nullptr;
+        }
+    }
 
     /**
      * Creates a transversal system.
