@@ -10,7 +10,10 @@
 #ifndef LIBCANON_STRING_CANON_H
 #define LIBCANON_STRING_CANON_H
 
+#include <algorithm>
 #include <memory>
+#include <numeric>
+#include <unordered_map>
 #include <vector>
 
 #include <libcanon/perm.h>
@@ -422,15 +425,13 @@ public:
     /** Constructs a Sims coset.
      *
      * \param prev The previous level of Sims coset.
-     * \param curr The current level of Sims transversal.
      * \param selected The point selected to be moved into the target.  Note
      * that it needs to be a point in the orbit.
      */
 
-    Sims_coset(
-        const Sims_coset* prev, const Sims_transv<P>& curr, Point selected)
+    Sims_coset(const Sims_coset* prev, Point selected)
         : prev{ prev }
-        , curr{ curr }
+        , curr{ *prev->next } // It cannot be a leaf for a coset to be expanded.
         , selected{ selected }
         , perm{ curr.get_repr(selected) }
         , next{ curr.next->get() }
@@ -520,6 +521,115 @@ private:
 
     /** Pointer to the next level of subgroup. */
     const Sims_transv<P>* next;
+};
+
+/** Refiner for string canonicalization problem based on Sims transversal.
+ *
+ * For a problem, in addition to the type of permutation `P`, we also need the
+ * type of the combinatorial structure `S` and the comparator for the alphabet
+ * in the string `C`
+ *
+ * `S` needs to be indexable and able to be constructed from a size.  The
+ * comparator needs to implement `equals` and `is_less` methods for comparing
+ * the contents in the string.
+ */
+
+template <typename S, typename P, typename C> class Sims_refiner {
+public:
+    //
+    // Types required by the refiner protocol.
+    //
+
+    using Coset = Sims_coset<P>;
+    using Perm = P;
+    using Transv = Sims_transv<P>;
+    using Structure = S;
+    using Container = std::unordered_map<S, P>;
+
+    /** Comparator for the alphabet.  */
+
+    using Alpha_comp = C;
+
+    template <typename T>
+    Sims_refiner(size_t size, T&& comp)
+        : size{ size }
+        , comp{ std::forward<T>(comp) }
+    {
+    }
+
+    //
+    // Methods required by the refiner protocol
+    //
+
+    /** Tests if a given coset is a leaf coset. */
+    bool is_leaf(const Coset& coset) const { return !coset.get_curr().next; }
+
+    /** Refines a non-leaf coset */
+    std::vector<Coset> refine(const Structure& obj, const Coset& coset) const
+    {
+        std::vector<Coset> children{};
+
+        Point target = coset.get_curr().get_target();
+
+        // Find the points of minimum alphabet in the orbit.
+        Point min = coset >> target;
+        children.emplace_back(*coset, coset.get_next(), target);
+
+        for (const auto& perm : coset.get_curr()) {
+            Point src = perm >> target;
+            Point orig = coset >> src;
+            if (comp.equals(orig, min)) {
+                children.emplace_back(*coset, coset.get_next(), src);
+            } else if (comp.less(orig, min)) {
+                min = orig;
+                children.clear();
+                children.emplace_back(*coset, coset.get_next(), src);
+            }
+            // Do nothing when a greater point is found.
+        }
+
+        return children;
+    }
+
+    /** Gets a permutation in a leaf coset */
+    Perm get_a_perm(const Coset& coset) const
+    {
+        std::unique_ptr<P> perm = coset.get_a_perm();
+        if (perm) {
+            return std::move(*perm);
+        } else {
+            return Perm{ size }; // Create the identity permutation.
+        }
+    }
+
+    /** Acts a given permutation to a combinatorial object. */
+    Structure act(const Perm& perm, const Structure& obj) const
+    {
+        Structure result(size);
+
+        for (size_t i = 0; i < size; ++i) {
+            result[perm << i] = obj[i];
+        }
+
+        return result;
+    }
+
+    /** Left multiplies a coset by a permutation */
+    Coset left_mult(const Perm& perm, const Coset& coset) const
+    {
+        return { coset.get_prev(), coset.get_curr(),
+            perm >> coset.get_selected() };
+    }
+
+    auto get_transv(const Coset& upper, const Coset& lower) const
+    {
+        return std::move(
+            std::make_unique<Transv>(size, lower >> lower.get_target()));
+    }
+
+private:
+    size_t size;
+    C comp;
 };
 
 } // End namespace libcanon
