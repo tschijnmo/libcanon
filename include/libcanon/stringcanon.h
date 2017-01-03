@@ -432,20 +432,50 @@ public:
         : prev{ prev }
         , curr{ curr }
         , selected{ selected }
-        , perm{ *curr.get_repr(selected) }
+        , perm{ curr.get_repr(selected) }
         , next{ curr.next->get() }
     {
     }
 
     /** Gets the pre-image of a point by the permutation labelling this coset.
+     *
+     * This function is more suitable for the query of just a few points.  For
+     * full construction of a permutation, use `get_a_perm`.
      */
 
     friend Point operator>>(const Sims_coset* coset, Point point)
     {
         for (; coset != nullptr; coset = coset->prev) {
-            point = coset->perm >> point;
+            if (coset->perm) {
+                point = *coset->perm >> point;
+            } // Else we assume we chose identity.
         }
         return point;
+    }
+
+    /**
+     * Gets a permutation in the coset.
+     *
+     * Null pointer for identity permutation.
+     */
+
+    std::unique_ptr<P> get_a_perm() const
+    {
+        std::unique_ptr<P> res;
+        std::unique_ptr<P> prod;
+
+        for (const Sims_coset* coset = this; coset != nullptr;
+             coset = coset->prev) {
+            if (coset->perm) {
+                if (res) {
+                    prod = std::make_unique<P>(*coset->perm | *res);
+                    res.swap(prod);
+                } else {
+                    res = std::make_unique<P>(*coset->perm); // Copy.
+                }
+            }
+        }
+        return std::move(res);
     }
 
     /** Tests if two cosets are equal.
@@ -467,6 +497,14 @@ public:
 
     size_t hash() const { return selected; }
 
+    Point get_selected() const { return selected; }
+
+    const Sims_coset* get_prev() const { return prev; }
+
+    const Sims_transv<P>& get_curr() const { return curr; }
+
+    const Sims_transv<P>* get_next() const { return next; }
+
 private:
     /** Pointer to the previous level of coset, nullptr for first level. */
     const Sims_coset* prev;
@@ -478,7 +516,7 @@ private:
     Point selected;
 
     /** Reference to the permutation chosen by this level of coset. */
-    const P& perm;
+    const P* perm;
 
     /** Pointer to the next level of subgroup. */
     const Sims_transv<P>* next;
