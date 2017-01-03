@@ -119,9 +119,41 @@ public:
 
     Point get_target() const { return target; }
 
+    /** Conjugates the group formed by the transversal system.
+     *
+     * After calling this method, the group formed by the transversal system
+     * will be transformed from the original $G$ to $p^- G p$, where $p$ is the
+     * given permutation.  Note that the placement of inversion is slightly
+     * non-conventional.  This is for the convenient of application in
+     * canonicalization problem.
+     */
+
+    template <typename E> void conj(const E& perm)
+    {
+        Point new_target = perm << target;
+        size_t size = transv.size();
+        Transv_container new_transv(size);
+
+        for (size_t i = 0; i < size; ++i) {
+            auto& repr = transv[i];
+            if (repr) {
+                auto new_perm = std::make_unique<P>(~perm | *repr | perm);
+                Point new_label = *new_perm >> target;
+
+                // new_perm is guaranteed to be non-identity.
+                new_transv[new_label] = std::move(new_perm);
+            }
+        }
+
+        transv.swap(new_transv);
+        if (next)
+            next->conj(perm);
+    }
+
 private:
     const Point target;
-    std::vector<std::unique_ptr<P>> transv;
+    using Transv_container = std::vector<std::unique_ptr<P>>;
+    Transv_container transv;
 
     //
     // Iteration over a transversal.
@@ -685,7 +717,7 @@ std::pair<S, std::unique_ptr<Sims_transv<P>>> canon_string(
             [](const auto& a, const auto& b) { return a.first < b.first; });
 
     aut->conj(canon_form.second);
-    return {std::move(canon_form.first), std::move(aut)};
+    return { std::move(canon_form.first), std::move(aut) };
 }
 
 } // End namespace libcanon
