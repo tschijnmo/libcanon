@@ -422,19 +422,29 @@ std::unique_ptr<Sims_transv<P>> build_sims_sys(size_t size, std::vector<P> gens)
 
 template <typename P> class Sims_coset {
 public:
-    /** Constructs a Sims coset.
+    /** Constructs a Sims coset by expanding from a previous one.
      *
      * \param prev The previous level of Sims coset.
      * \param selected The point selected to be moved into the target.  Note
      * that it needs to be a point in the orbit.
      */
 
-    Sims_coset(const Sims_coset* prev, Point selected)
-        : prev{ prev }
-        , curr{ *prev->next } // It cannot be a leaf for a coset to be expanded.
+    Sims_coset(const Sims_coset& prev, Point selected)
+        : prev{ *prev }
+        , curr{ prev->next }
         , selected{ selected }
-        , perm{ curr.get_repr(selected) }
-        , next{ curr.next->get() }
+        , perm{ curr->get_repr(selected) }
+        , next{ curr->next->get() }
+    {
+    }
+
+    /**
+     * Constructs a root coset for the group given as a Sims transversal.
+     */
+
+    Sims_coset(const Sims_transv<P>& group)
+        : curr{ nullptr }
+        , next{ *group }
     {
     }
 
@@ -446,7 +456,7 @@ public:
 
     friend Point operator>>(const Sims_coset* coset, Point point)
     {
-        for (; coset != nullptr; coset = coset->prev) {
+        for (; coset->curr != nullptr; coset = coset->prev) {
             if (coset->perm) {
                 point = *coset->perm >> point;
             } // Else we assume we chose identity.
@@ -465,7 +475,7 @@ public:
         std::unique_ptr<P> res;
         std::unique_ptr<P> prod;
 
-        for (const Sims_coset* coset = this; coset != nullptr;
+        for (const Sims_coset* coset = this; coset->curr != nullptr;
              coset = coset->prev) {
             if (coset->perm) {
                 if (res) {
@@ -498,11 +508,28 @@ public:
 
     size_t hash() const { return selected; }
 
+    /** Gets the selected point to be put into the target.
+     *
+     * Result for root coset is undefined.
+     */
+
     Point get_selected() const { return selected; }
 
-    const Sims_coset* get_prev() const { return prev; }
+    /** Gets the previous coset.
+     *
+     * It can only be called on non-root coset.
+     */
 
-    const Sims_transv<P>& get_curr() const { return curr; }
+    const Sims_coset& get_prev() const { return *prev; }
+
+    /** Gets the current transversal system.
+     *
+     * It can only be called on non-root coset.
+     */
+
+    const Sims_transv<P>& get_curr() const { return *curr; }
+
+    /** Gets the next level of transversal system */
 
     const Sims_transv<P>* get_next() const { return next; }
 
@@ -511,7 +538,7 @@ private:
     const Sims_coset* prev;
 
     /** The current level of transversal. */
-    const Sims_transv<P>& curr;
+    const Sims_transv<P>* curr;
 
     /** The label for the coset. */
     Point selected;
@@ -562,28 +589,29 @@ public:
     //
 
     /** Tests if a given coset is a leaf coset. */
-    bool is_leaf(const Coset& coset) const { return !coset.get_curr().next; }
+    bool is_leaf(const Coset& coset) const { return !coset.get_next(); }
 
     /** Refines a non-leaf coset */
     std::vector<Coset> refine(const Structure& obj, const Coset& coset) const
     {
         std::vector<Coset> children{};
 
-        Point target = coset.get_curr().get_target();
+        Point target = coset.get_next()->get_target();
+        // Only valid for non-leaf cosets.
 
         // Find the points of minimum alphabet in the orbit.
         Point min = coset >> target;
-        children.emplace_back(*coset, coset.get_next(), target);
+        children.emplace_back(coset, target);
 
         for (const auto& perm : coset.get_curr()) {
             Point src = perm >> target;
             Point orig = coset >> src;
             if (comp.equals(orig, min)) {
-                children.emplace_back(*coset, coset.get_next(), src);
+                children.emplace_back(coset, src);
             } else if (comp.less(orig, min)) {
                 min = orig;
                 children.clear();
-                children.emplace_back(*coset, coset.get_next(), src);
+                children.emplace_back(coset, src);
             }
             // Do nothing when a greater point is found.
         }
@@ -617,8 +645,7 @@ public:
     /** Left multiplies a coset by a permutation */
     Coset left_mult(const Perm& perm, const Coset& coset) const
     {
-        return { coset.get_prev(), coset.get_curr(),
-            perm >> coset.get_selected() };
+        return { coset.get_prev(), perm >> coset.get_selected() };
     }
 
     auto get_transv(const Coset& upper, const Coset& lower) const
