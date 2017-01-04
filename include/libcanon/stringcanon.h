@@ -491,33 +491,77 @@ public:
 
     bool operator==(const String_structure& other) const
     {
-        auto size = this->size();
-        if (other.size() != size)
-            return false;
-        for (size_t i = 0; i < size; ++i) {
-            if (!((*this)(i) == other(i)))
-                return false;
-        }
-        return true;
+        return std::equal(this->begin_colour(), this->end_colour(),
+            other.begin_colour(), other.end_colour());
     }
 
     /** Lexicographical ordering based on colour */
 
     bool operator<(const String_structure& other) const
     {
-        auto size = this->size();
-        auto other_size = other.size();
+        return std::lexicographical_compare(this->begin_colour(),
+            this->end_colour(), other.begin_colour(), other.end_colour());
+    }
 
-        if (size != other_size)
-            return size < other_size;
+    //
+    // Easy iteration over the colours at each index.
+    //
 
-        for (size_t i = 0; i < size; ++i) {
-            if ((*this)(i) < other(i))
-                return true;
+    /** The iterator class for colour iteration */
+
+    class Colour_it {
+
+    public:
+        /** Creates a colour iterator. */
+
+        Colour_it(const S& obj, Point idx)
+            : obj{ obj }
+            , idx{ idx }
+        {
         }
 
-        // Now we have equal strings.
-        return false;
+        /** Increments the iterator. */
+
+        Colour_it& operator++()
+        {
+            ++idx;
+            return *this;
+        }
+
+        /** Equality comparison.
+         *
+         * Here for performance reasons, we just compare the index.
+         */
+
+        bool operator==(const Colour_it& other) { return idx == other.idx; }
+
+        /** Inequality comparison. */
+
+        bool operator!=(const Colour_it& other)
+        {
+            return !(this->operator==(other));
+        }
+
+        /** Dereferencing. */
+
+        auto operator*() const
+        {
+            return obj(idx);
+        }
+
+    private:
+        const S& obj;
+        Point idx;
+    };
+
+    Colour_it begin_colour() const
+    {
+        return { static_cast<const S&>(*this), 0 };
+    }
+
+    Colour_it end_colour() const
+    {
+        return { static_cast<const S&>(*this), this->size() };
     }
 };
 
