@@ -363,6 +363,15 @@ auto operator|(const Perm_expr<T1>& left, const Perm_expr<T2>& right)
     return Perm_prod<T1, T2>(left, right);
 }
 
+/** Type for simple permutations.
+ *
+ * This should be sufficient for most of the purposes, when the permutation are
+ * either accompanied by no other action, and when the action is simply
+ * isomorphic to the tensor product of a few $\mathbb{Z}_2$ groups.
+ */
+
+using Simple_perm = Perm<char>;
+
 //
 // Transversal adaptation
 // ----------------------
