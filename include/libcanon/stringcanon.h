@@ -845,4 +845,30 @@ std::pair<S, std::unique_ptr<Sims_transv<P>>> canon_string(
 }
 
 } // End namespace libcanon
+
+//
+// Injection into the standard namespace for hashing.
+//
+
+namespace std {
+
+/** Hasher for string combinatorial structures */
+
+template <typename S> struct hash<libcanon::String_structure<S>> {
+    size_t operator()(const libcanon::String_structure<S>& obj) const
+    {
+        return obj.hash();
+    }
+};
+
+/** Hasher for Sims transversal cosets */
+
+template <typename P> struct hash<libcanon::Sims_coset<P>> {
+    size_t operator()(const libcanon::Sims_coset<P>& coset) const
+    {
+        return coset.hash();
+    }
+};
+}
+
 #endif // LIBCANON_STRING_CANON_H
