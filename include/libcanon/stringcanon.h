@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <memory>
 #include <numeric>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -456,11 +457,12 @@ std::unique_ptr<Sims_transv<P>> build_sims_sys(size_t size, std::vector<P> gens)
  * 3. Indexable by `[]`, to get the actual alphabet at the given index, also
  * indexable by `()`, to get the colour of the alphabet at the given index.
  * Note that the colour will be used for equality comparison by `==` and order
- * comparison by `<`.
+ * comparison by `<`, and hashing by std::hash.
  *
  * Then by sub classing the specialization of this template with the actual
  * type will make the equality and lexicographical comparison based on the
- * actual colour available.
+ * actual colour available.  Also available are the iterators for colours and
+ * hashing.
  */
 
 template <typename S> class String_structure {
@@ -468,6 +470,8 @@ public:
     /** The actual data type for string structures. */
 
     using Structure = S;
+    using Colour = std::remove_reference_t<std::result_of_t<S(Point)>>;
+    using Alphabet = std::remove_reference_t<decltype(std::declval<S>()[0])>;
 
     /** Gets the size of the string */
 
@@ -501,6 +505,15 @@ public:
     {
         return std::lexicographical_compare(this->begin_colour(),
             this->end_colour(), other.begin_colour(), other.end_colour());
+    }
+
+    size_t hash() const
+    {
+        size_t seed = 0;
+        std::hash<Colour> hasher{};
+        std::for_each(this->begin_colour(), this->end_colour(),
+            [&](auto colour) { combine_hash(seed, hasher(colour)); });
+        return seed;
     }
 
     //
@@ -544,10 +557,7 @@ public:
 
         /** Dereferencing. */
 
-        auto operator*() const
-        {
-            return obj(idx);
-        }
+        auto operator*() const { return obj(idx); }
 
     private:
         const S& obj;
