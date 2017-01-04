@@ -2,11 +2,11 @@
  * Graph canonicalization in the spirit of B McKay.
  */
 
-#ifndef LIBCANON_MCKAY_H
-#define LIBCANON_MCKAY_H
+#ifndef LIBCANON_ELDAG_H
+#define LIBCANON_ELDAG_H
 
 namespace libcanon {
 
 }
 
-#endif //LIBCANON_MCKAY_H
+#endif //LIBCANON_ELDAG_H

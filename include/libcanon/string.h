@@ -7,8 +7,8 @@
  * transversal system.
  */
 
-#ifndef LIBCANON_STRING_CANON_H
-#define LIBCANON_STRING_CANON_H
+#ifndef LIBCANON_STRING_H
+#define LIBCANON_STRING_H
 
 #include <algorithm>
 #include <memory>
@@ -871,4 +871,4 @@ template <typename P> struct hash<libcanon::Sims_coset<P>> {
 };
 }
 
-#endif // LIBCANON_STRING_CANON_H
+#endif // LIBCANON_STRING_H
