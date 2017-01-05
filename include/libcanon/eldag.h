@@ -259,6 +259,108 @@ namespace libcanon::internal {
 
     template <typename A> using Borrowed_perms = std::vector<const Perm<A>*>;
 
+    /**
+     * Data type for a coset in the canonicalization of an Eldag.
+     */
+
+    template <typename A> class Eldag_coset {
+
+    public:
+        /** Individualizes the refined partition.
+         *
+         * This method can be called after the testing of leaf, where the
+         * partition is going to be refined.
+         */
+
+        std::vector<Eldag_coset> individualize() {}
+
+        /** Tests if the result is a leaf.
+         *
+         * In addition to testing, most importantly, the Weisfeiler-Lehman
+         * refinement will be performed here.
+         */
+
+        bool is_leaf() {}
+
+        /** Constructs a coset based on initial partition and symmetries.
+         *
+         * This is useful for the creation of root coset.
+         */
+
+        Eldag_coset(const Partition& init_part, Symms<A> init_symms) {}
+
+    private:
+        /** Constructs a coset by individualizing a point.
+         *
+         * This is useful for the individualization step.  Note that this
+         * construction is better used on cosets after refinement.
+         */
+
+        Eldag_coset(const Eldag_coset& base, Point point) {}
+
+        /** Constructs a coset by acting a permutation.
+         *
+         * This is useful for the pruning of the refinement tree.  Note that
+         * the created coset is not actually fully valid one.  Just the
+         * individualized point is correctly set for the sake of removing the
+         * actual coset.
+         */
+
+        Eldag_coset(const Eldag_coset& base, const Simple_perm& perm) {}
+
+        /** Refines the currently holding partition and symmetry.
+         *
+         * Most of the actual work of the canonicalization of Eldag actually
+         * comes here.
+         */
+
+        void refine() {}
+
+        //
+        // Data fields
+        //
+
+        /** The partition of graph nodes.
+         *
+         * It can be coarse initially, and then refined.
+         */
+
+        Partition partition;
+
+        /** The current permutations applied to the nodes.
+         */
+
+        Borrowed_perms<A> perms;
+
+        /** The current symmetries for each of the nodes.
+         */
+
+        Symms<A> symms;
+
+        /** The permutation on each node after refinement.
+         */
+
+        Perms<A> refined_perms;
+
+        /** Refined symmetries for each node.
+         */
+
+        Owned_symms<A> refined_symms;
+
+        /**
+         * The point that is individualized in the construction of this coset.
+         */
+
+        Point individualized;
+
+        /** If the coset is the root.
+         *
+         * Redundant, just for safety.
+         */
+
+        bool is_root;
+    };
+
 } // End namespace libcanon::internal.
 
 template <typename A>
