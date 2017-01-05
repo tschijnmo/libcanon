@@ -11,8 +11,13 @@
 
 #include <algorithm>
 #include <iterator>
+#include <memory>
 #include <numeric>
+#include <tuple>
+#include <utility>
 #include <vector>
+
+#include <libcanon/perm.h>
 
 namespace libcanon {
 
@@ -223,6 +228,44 @@ private:
     Array ends;
 };
 
+/** The data type to given symmetries for the nodes in an Eldag.
+ *
+ * Here the container is fixed to vector for the ease of coding.  Null values
+ * are considered to be the absence of any symmetries.
+ *
+ * This type is going to be used for the public driver functions for Eldag
+ * canonicalization.
+ */
+
+template <typename A> using Symms = std::vector<const Sims_transv<Perm<A>>*>;
+
+/** The data type for the permutations to be applied to nodes in an Eldag.
+ *
+ * This is going to be in the return value of the public driver function for
+ * Eldag canonicalization.  Note that here the value owns the reference to the
+ * permutations.
+ */
+
+template <typename A> using Perms = std::vector<std::unique_ptr<Perm<A>>>;
+
+namespace libcanon::internal {
+
+    /** Data type for owned references to symmetries. */
+
+    template <typename A>
+    using Owned_symms = std::vector<std::unique_ptr<Sims_transv<Perm<A>>>>;
+
+    /** Data type for borrowed references to permutations. */
+
+    template <typename A> using Borrowed_perms = std::vector<const Perm<A>*>;
+
+} // End namespace libcanon::internal.
+
+template <typename A>
+std::tuple<Simple_perm, Perms<A>, Sims_transv<Perm<A>>> canon_eldag(
+    const Eldag& eldag, const Symms<A>& symms, Partition init_colour)
+{
+}
 }
 
 #endif // LIBCANON_ELDAG_H
