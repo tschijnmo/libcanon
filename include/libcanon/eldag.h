@@ -219,6 +219,10 @@ public:
 
     size_t size() const { return perm.size(); }
 
+    /** Gets the pre-image array of a permutation for the partition. */
+
+    const Array& get_pre_imgs() const { return perm; }
+
 private:
     /** Permutation of the given points */
     Array perm;
@@ -359,6 +363,65 @@ namespace libcanon::internal {
          */
 
         bool is_root;
+    };
+
+    /** Data type for a permutation on an Eldag.
+     *
+     * Inside it, we have not only the global permutation of the nodes, but the
+     * permutation on valences of each nodes as well.
+     *
+     * Note that the permutation stored in the graph automorphism are not of
+     * this type, but rather simple permutations of the nodes.  This is
+     * achieved by delegate to proxy types for the expression `g | ~h`.
+     */
+
+    template <typename A> struct Eldag_perm {
+
+        /** The permutations on each of the nodes. */
+
+        Perms<A> perms;
+
+        /** The global partition of the nodes.
+         *
+         * It should be a singleton partition already.
+         */
+
+        Partition partition;
+
+        /** The class for the inversion of an Eldag permutation. */
+
+        struct Inv_eldag_perm {
+            const Eldag_perm& operand;
+        };
+
+        /** Inverses a permutation.
+         *
+         * No actual inversion is done.  Just a proxy is returned.
+         */
+
+        Inv_eldag_perm operator~() const { return { *this }; }
+
+        /** Forms an automorphism.
+         *
+         * This function will be called by the generic canonicalization
+         * function by the evaluation of the expression `p | ~q`.
+         */
+
+        Simple_perm operator|(const Inv_eldag_perm& inv)
+        {
+            size_t size = partition.size();
+            std::vector<Point> pre_imgs(size);
+
+            const auto& p = partition.get_pre_imgs();
+            const auto& q = inv.operand.get_pre_imgs();
+
+            for (size_t i = 0; i < size; ++i) {
+                // By ~q, q[i] <- i;
+                pre_imgs[q[i]] = p[i];
+            }
+
+            return { pre_imgs.begin(), pre_imgs.end() };
+        }
     };
 
 } // End namespace libcanon::internal.
