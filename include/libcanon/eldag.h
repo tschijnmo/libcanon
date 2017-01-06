@@ -321,7 +321,7 @@ Eldag act(const Eldag& eldag, const G& gl_perm, const L& perms)
     return res;
 }
 
-namespace libcanon::internal {
+namespace internal {
 
     /** Data type for owned references to symmetries. */
 
