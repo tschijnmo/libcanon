@@ -14,6 +14,7 @@
 #include <memory>
 #include <numeric>
 #include <tuple>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -569,11 +570,28 @@ namespace internal {
     };
 } // End namespace libcanon::internal.
 
-template <typename A>
+template <typename A, typename F>
 std::tuple<Simple_perm, Perms<A>, Sims_transv<Perm<A>>> canon_eldag(
-    const Eldag& eldag, const Symms<A>& symms, Partition init_colour)
+    const Eldag& eldag, const Symms<A>& symms, F init_colour)
 {
+    Partition init_part{ eldag.size() };
+    init_part.split_by_key(0, init_colour);
+
+    using Refiner = internal::Eldag_refiner<A>;
+    Refiner refiner{};
+    internal::Eldag_coset<A> root_coset{ init_part, symms };
+    typename Refiner::Container container{};
+
+    auto aut = add_all_candidates(refiner, eldag, root_coset, container);
+
+    const auto& canon_form
+        = std::min_element(container.begin(), container.end(),
+            [](const auto& a, const auto& b) { return a.first < b.first; });
+
+    return { canon_form.second.make_perm(), std::move(canon_form.second.perms),
+        std::move(aut) };
 }
-}
+
+} // End namespace libcanon.
 
 #endif // LIBCANON_ELDAG_H
