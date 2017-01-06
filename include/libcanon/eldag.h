@@ -528,6 +528,50 @@ namespace internal {
         size_t hash() const { return get_individualized(); }
 
     private:
+        /** The orbit label of valences of a node.
+         */
+
+        using Orbit = std::vector<Point>;
+
+        /** An edge in detail.
+         *
+         * It is a sorted list of all the orbit labels of all the edges from
+         * the parent node to the children.
+         */
+
+        using Detailed_edge = std::vector<size_t>;
+
+        /** Detailed description of the in/out edges between a node and a cell.
+         *
+         * The result should be sorted for set semantics.  It is implemented as
+         * a struct here to have better control over the comparison order among
+         * them.
+         */
+
+        class Detailed_edges : public std::vector<Detailed_edge> {
+
+            /** Compares two for order.
+             *
+             * Here larger number of connections is considered smaller.  In
+             * this way, when we sweep the cells from beginning to end, nodes
+             * with more connection with nodes of earlier colour will be put
+             * earlier.
+             */
+
+            bool operator<(const Detailed_edges& other) const
+            {
+                return this->size() < other.size() || *this < other;
+            }
+        };
+
+        /** Detailed description of the connection between a node and a cell.
+         *
+         * Here we have information about both the in and the out edges.
+         * Default lexicographical order will be used.
+         */
+
+        using Conns = std::pair<Detailed_edges, Detailed_edges>;
+
         /** Refines the currently holding partition and symmetry.
          *
          * Most of the actual work of the canonicalization of Eldag actually
@@ -536,7 +580,94 @@ namespace internal {
 
         void refine()
         {
-            // TODO: Add the actual refinement here.
+            // Refine until fixed point.
+
+            while (true) {
+
+                // First refine the automorphism at each node.
+                refine_nodes();
+
+                //
+                // Unary split.
+                //
+
+                auto orbits = form_orbits();
+                bool split = false;
+                // Back up the current partition for unary split.
+                std::vector<size_t> curr_partition(
+                    partition.begin(), partition.end());
+
+                for (auto i : curr_partition) {
+                    split |= partition.split_by_key(
+                        i, [&](auto point) -> const Orbit& {
+                            return orbits[point];
+                        });
+                }
+                if (split) {
+                    // Binary split is expansive.  Refine as much as possible
+                    // before carrying it out.
+                    continue;
+                }
+
+                //
+                // Binary split.
+                //
+
+                split = false;
+                std::vector<Conns> conns(partition.size());
+
+                // Here for each loop, we always take advantage of the latest
+                // refine due to the special semantics of looping over cells in
+                // a partition.
+
+                for (auto splittee : partition) {
+                    for (auto splitter : partition) {
+
+                        update_conns4cell(conns, splittee, splitter);
+
+                        split |= partition.split_by_key(
+                            splittee, [&](auto point) -> const Conns& {
+                                return conns[point];
+                            });
+                    }
+                }
+
+                if (split) {
+                    continue;
+                } else {
+                    // Now we reached a fixed point.
+                    break;
+                }
+            };
+        }
+
+        /** Refines the automorphism of all nodes.
+         *
+         * In this function, the permutations and symmetries for each node will
+         * be refined as much as possible based on the current partition of the
+         * nodes.
+         */
+
+        void refine_nodes()
+        {
+            // TODO: Add implementation.
+        }
+
+        /** Forms the orbit label array for all nodes.
+         */
+
+        std::vector<Orbit> form_orbits() const
+        {
+            // TODO: Add implementation.
+        }
+
+        /** Updates the connection information.
+         */
+
+        void update_conns4cell(
+            std::vector<Conns>& conns, Point splittee, Point splitter)
+        {
+            // TODO: Add implementation.
         }
 
         //
