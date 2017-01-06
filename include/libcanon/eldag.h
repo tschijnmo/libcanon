@@ -19,6 +19,7 @@
 #include <vector>
 
 #include <libcanon/perm.h>
+#include <libcanon/string.h>
 
 namespace libcanon {
 
@@ -396,30 +397,20 @@ namespace internal {
      */
 
     template <typename A> class Eldag_coset {
-
     public:
-        /** Individualizes the refined partition.
-         *
-         * This method can be called after the testing of leaf, where the
-         * partition is going to be refined.
-         */
-
-        std::vector<Eldag_coset> individualize_first_nonsingleton() {}
-
-        /** Tests if the result is a leaf.
-         *
-         * In addition to testing, most importantly, the Weisfeiler-Lehman
-         * refinement will be performed here.
-         */
-
-        bool is_leaf() {}
-
         /** Constructs a coset based on initial partition and symmetries.
          *
          * This is useful for the creation of root coset.
          */
 
-        Eldag_coset(const Partition& init_part, Symms<A> init_symms) {}
+        Eldag_coset(const Partition& init_part, Symms<A> init_symms)
+            : partition{ init_part }
+            , symms(init_symms)
+            , perms(init_part.size(), nullptr)
+            , refined_symms()
+            , refined_perms()
+        {
+        }
 
         /** Constructs a coset by acting a permutation.
          *
@@ -429,7 +420,15 @@ namespace internal {
          * actual coset.
          */
 
-        Eldag_coset(const Eldag_coset& base, const Simple_perm& perm) {}
+        Eldag_coset(const Eldag_coset& base, const Simple_perm& perm)
+            : individualized{ perm >> base.get_individualized() }
+            , partition()
+            , perms()
+            , symms()
+            , refined_perms()
+            , refined_symms()
+        {
+        }
 
         /** Constructs a coset by individualizing a point.
          *
@@ -437,7 +436,48 @@ namespace internal {
          * construction is better used on cosets after refinement.
          */
 
-        Eldag_coset(const Eldag_coset& base, Point point) {}
+        Eldag_coset(const Eldag_coset& base, Point point)
+            : individualized(point)
+            , partition(base.partition, point)
+            , symms(base.symms)
+            , perms(base.perms)
+            , refined_perms()
+            , refined_symms()
+        {
+        }
+
+        /** Individualizes the refined partition.
+         *
+         * This method can be called after the testing of leaf, where the
+         * partition is going to be refined.
+         */
+
+        std::vector<Eldag_coset> individualize_first_nonsingleton()
+        {
+            auto cell = std::find_if(partition.begin(), partition.end(),
+                [&](auto cell) { return partition.get_cell_size(cell) > 1; });
+
+            // When used correctly, we should find a non-singleton cell here.
+
+            std::vector<Eldag_coset> res;
+            std::transform(partition.cell_begin(*cell),
+                partition.cell_end(*cell), std::back_inserter(res),
+                [&](auto point) { return Eldag_coset(*this, point); });
+
+            return res;
+        }
+
+        /** Tests if the result is a leaf.
+         *
+         * In addition to testing, most importantly, the Weisfeiler-Lehman
+         * refinement will be performed here.
+         */
+
+        bool is_leaf()
+        {
+            refine();
+            return partition.is_discrete();
+        }
 
         /** Gets the point individualized during its construction.
          */
@@ -449,6 +489,28 @@ namespace internal {
 
         size_t size() const { return partition.size(); }
 
+        /** Compares two cosets for equality.
+         *
+         * Here only the point that is individualized is compared.  So it is
+         * actually only applicable to peers.
+         */
+
+        bool operator==(const Eldag_coset& other) const
+        {
+            return get_individualized() == other.get_individualized();
+        }
+
+        /** Evaluates the hash of a coset.
+         *
+         * Note that only the individualized point is used.  So it is only
+         * useful for retrieval amongst it peers.
+         */
+
+        size_t hash() const
+        {
+            return get_individualized();
+        }
+
     private:
         /** Refines the currently holding partition and symmetry.
          *
@@ -456,7 +518,10 @@ namespace internal {
          * comes here.
          */
 
-        void refine() {}
+        void refine() 
+        {
+            // TODO: Add the actual refinement here.
+        }
 
         //
         // Data fields
@@ -494,13 +559,6 @@ namespace internal {
          */
 
         Point individualized;
-
-        /** If the coset is the root.
-         *
-         * Redundant, just for safety.
-         */
-
-        bool is_root;
     };
 
     /** Data type for a permutation on an Eldag.
