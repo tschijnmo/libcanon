@@ -716,7 +716,11 @@ namespace internal {
 
         std::vector<Orbit> form_orbits() const
         {
-            // TODO: Add implementation.
+            std::vector<Orbit> res{};
+
+            std::transform(symms.begin(), symms.end(), std::back_inserter(res),
+                [&](const auto& aut) { return aut.get_orbits(); });
+            return res;
         }
 
         /** Updates the connection information.
