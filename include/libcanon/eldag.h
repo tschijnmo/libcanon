@@ -237,6 +237,16 @@ public:
 
     const Array& get_pre_imgs() const { return perm; }
 
+    /** Gets the pre-image of a given point.
+     */
+
+    Point operator>>(Point point) const { return perm[point]; }
+
+    /** Makes a simple permutation object for the partition.
+     */
+
+    Simple_perm make_perm() const { return { perm.begin(), perm.end() }; }
+
 private:
     /** Permutation of the given points */
     Array perm;
@@ -335,7 +345,7 @@ namespace libcanon::internal {
          * partition is going to be refined.
          */
 
-        std::vector<Eldag_coset> individualize() {}
+        std::vector<Eldag_coset> individualize_first_nonsingleton() {}
 
         /** Tests if the result is a leaf.
          *
@@ -352,15 +362,6 @@ namespace libcanon::internal {
 
         Eldag_coset(const Partition& init_part, Symms<A> init_symms) {}
 
-    private:
-        /** Constructs a coset by individualizing a point.
-         *
-         * This is useful for the individualization step.  Note that this
-         * construction is better used on cosets after refinement.
-         */
-
-        Eldag_coset(const Eldag_coset& base, Point point) {}
-
         /** Constructs a coset by acting a permutation.
          *
          * This is useful for the pruning of the refinement tree.  Note that
@@ -371,6 +372,25 @@ namespace libcanon::internal {
 
         Eldag_coset(const Eldag_coset& base, const Simple_perm& perm) {}
 
+        /** Constructs a coset by individualizing a point.
+         *
+         * This is useful for the individualization step.  Note that this
+         * construction is better used on cosets after refinement.
+         */
+
+        Eldag_coset(const Eldag_coset& base, Point point) {}
+
+        /** Gets the point individualized during its construction.
+         */
+
+        Point get_individualized() const { return individualized; }
+
+        /** Gets the size of the graph.
+         */
+
+        size_t size() const { return partition.size(); }
+
+    private:
         /** Refines the currently holding partition and symmetry.
          *
          * Most of the actual work of the canonicalization of Eldag actually
@@ -481,8 +501,72 @@ namespace libcanon::internal {
 
             return { pre_imgs.begin(), pre_imgs.end() };
         }
+
+        /** Gets the pre-image of a given point.
+         */
+
+        Point operator>>(Point point) const { return partition >> point; }
     };
 
+    /**
+     * The actual refiner for Eldag canonicalization.
+     */
+
+    template <typename A> class Eldag_refiner {
+    public:
+        //
+        // Types required by the refiner protocol.
+        //
+
+        using Coset = Eldag_coset<A>;
+        using Perm = Eldag_perm<A>;
+        using Transv = Sims_transv<Simple_perm>;
+        using Structure = Eldag;
+        using Container = std::unordered_map<Eldag, Perm>;
+
+        /** Refines the given coset.
+         */
+
+        std::vector<Coset> refine(const Coset& coset)
+        {
+            return coset.individualize_first_nonsingleton();
+        }
+
+        /** Decides if a coset is a leaf.
+         */
+
+        bool is_leaf(Coset& coset) { return coset.is_leaf(); }
+
+        /** Gets a permutation from a coset.
+         */
+
+        Perm get_a_perm(const Coset& coset) { return coset.get_a_perm(); }
+
+        /** Acts a permutation on an Eldag.
+         */
+
+        Eldag act(const Eldag& eldag, Perm perm)
+        {
+            return act(eldag, perm.partition.make_perm(), perm.perms);
+        }
+
+        /** Left multiplies an automorphism onto a coset.
+         */
+
+        Coset left_mult(const Simple_perm& perm, const Coset& coset)
+        {
+            return { coset, perm };
+        }
+
+        /** Creates a transversal system for automorphisms.
+         */
+
+        auto create_transv(const Coset& upper, const Coset& lower)
+        {
+            return std::move(std::make_unique<Transv>(
+                upper.size(), lower.get_individualized()));
+        }
+    };
 } // End namespace libcanon::internal.
 
 template <typename A>
