@@ -576,6 +576,8 @@ namespace internal {
          *
          * Here we have information about both the in and the out edges.
          * Default lexicographical order will be used.
+         *
+         * Normally for Eldag, either the in edges or the out edges are empty.
          */
 
         using Conns = std::pair<Detailed_edges, Detailed_edges>;
@@ -586,14 +588,14 @@ namespace internal {
          * comes here.
          */
 
-        void refine()
+        void refine(const Eldag& eldag)
         {
             // Refine until fixed point.
 
             while (true) {
 
                 // First refine the automorphism at each node.
-                refine_nodes();
+                refine_nodes(eldag);
 
                 //
                 // Unary split.
@@ -631,7 +633,8 @@ namespace internal {
                 for (auto splittee : partition) {
                     for (auto splitter : partition) {
 
-                        update_conns4cell(conns, splittee, splitter);
+                        update_conns4cell(
+                            conns, eldag, orbits, splittee, splitter);
 
                         split |= partition.split_by_key(
                             splittee, [&](auto point) -> const Conns& {
@@ -689,12 +692,12 @@ namespace internal {
          * nodes.
          */
 
-        void refine_nodes(const Eldag eldag)
+        void refine_nodes(const Eldag& eldag)
         {
             // Refinement for nodes are independent.
             for (size_t i = 0; i < partition.size(); ++i) {
 
-                const auto curr_symm = symms[i];
+                auto curr_symm = symms[i];
                 if (!curr_symm) {
                     // Nodes without symmetry.
                     continue;
@@ -702,9 +705,10 @@ namespace internal {
 
                 Valence valence{ eldag, i, perms[i] };
 
-                auto canon_res = canon_string(valence, *perms);
+                auto canon_res = canon_string(valence, *curr_symm);
 
-                refined_perms[i] = std::make_unique<Perm<A>>(canon_res.first);
+                refined_perms[i]
+                    = std::make_unique<Perm<A>>(std::move(canon_res.first));
                 refined_symms[i] = std::move(canon_res.second);
                 perms[i] = refined_perms[i].get();
                 symms[i] = refined_symms[i].get();
@@ -719,17 +723,62 @@ namespace internal {
             std::vector<Orbit> res{};
 
             std::transform(symms.begin(), symms.end(), std::back_inserter(res),
-                [&](const auto& aut) { return aut.get_orbits(); });
+                [&](const auto aut) { return aut.get_orbits(); });
             return res;
         }
 
         /** Updates the connection information.
          */
 
-        void update_conns4cell(
-            std::vector<Conns>& conns, Point splittee, Point splitter)
+        void update_conns4cell(std::vector<Conns>& conns, const Eldag& eldag,
+            const std::vector<Orbit>& orbits, Point splittee, Point splitter)
         {
-            // TODO: Add implementation.
+            // Short-cut singleton partitions.  They will be automatically
+            // short-cut in split by key function any way.
+            if (partition.get_cell_size(splittee) < 2)
+                return;
+
+            std::for_each(partition.cell_begin(splittee),
+                partition.cell_end(splittee), [&](Point base) {
+                    Detailed_edges& ins = conns[base].first;
+                    Detailed_edges& outs = conns[base].second;
+
+                    ins.clear();
+                    outs.clear();
+
+                    std::for_each(partition.cell_begin(splitter),
+                        partition.cell_end(splitter), [&](Point curr) {
+                            // Add connection with the current point.
+                            add_detailed_edges(ins, eldag, orbits, curr, base);
+                            add_detailed_edges(outs, eldag, orbits, base, curr);
+                        });
+
+                    std::sort(ins.begin(), ins.end());
+                    std::sort(outs.begin(), outs.end());
+                });
+        }
+
+        /** Adds detailed edge from a point to another if there is any.
+         *
+         * Empty connection will not be added.
+         */
+
+        void add_detailed_edges(Detailed_edges& dest, const Eldag& eldag,
+            const std::vector<Orbit>& orbits, Point from, Point to)
+        {
+            Detailed_edge edge{};
+            for (size_t i = eldag.ia[from]; i < eldag.ia[from + 1]; ++i) {
+                if (eldag.edges[i] == to) {
+                    Point index = perms[from] ? *perms[from] << i : i;
+                    edge.push_back(orbits[from][index]);
+                }
+            }
+            if (edge.size() == 0)
+                return;
+            std::sort(edge.begin(), edge.end());
+            dest.push_back(std::move(edge));
+
+            return;
         }
 
         //
