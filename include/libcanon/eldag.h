@@ -53,6 +53,20 @@ struct Eldag {
     /** Gets the number of nodes in the Eldag. */
 
     size_t size() const { return ia.size() - 1; }
+
+    /** Creates an Eldag of a given size.
+     *
+     * Note that here the vectors are only reserved space.  The actual sizes
+     * are still empty.
+     */
+
+    Eldag(size_t n_nodes, size_t n_edges)
+        : edges{}
+        , ia{}
+    {
+        ia.reserve(n_nodes + 1);
+        edges.reserve(n_edges);
+    }
 };
 
 /** A partition of points.
@@ -251,6 +265,51 @@ template <typename A> using Symms = std::vector<const Sims_transv<Perm<A>>*>;
  */
 
 template <typename A> using Perms = std::vector<std::unique_ptr<Perm<A>>>;
+
+/** Acts permutations on an Eldag.
+ *
+ * Here the global permutation of the nodes should be given in a
+ * permutation-like object supporting operators `<<` and `>>`, the local
+ * permutation acting on each node should be given as an indexable container
+ * containing pointer-like objects pointing to the actual permutations on each
+ * node.  Null values indicates the absence of any permutation.
+ */
+
+template <typename G, typename L>
+Eldag act(const Eldag& eldag, const G& gl_perm, const L& perms)
+{
+    size_t size = eldag.size();
+    Eldag res{ size, eldag.edges.size() };
+
+    // The index that the next connection is going to be written to.
+    size_t curr_idx = 0;
+
+    // Constructs the nodes in the result one-by-one.
+    for (size_t curr = 0; curr < size; ++curr) {
+
+        Point pre_img = gl_perm >> curr;
+        size_t prev_base = eldag.ia[pre_img];
+        size_t valence = eldag.ia[pre_img + 1] - prev_base;
+
+        for (size_t i = 0; i < valence; ++i) {
+            size_t offset = i;
+
+            if (perms[curr]) {
+                offset = *perms[curr] >> offset;
+            }
+
+            Point conn = gl_perm << eldag.edges[prev_base + offset];
+            res.edges[curr_idx] = conn;
+            ++curr_idx;
+        }
+
+        res.ia.push_back(curr_idx);
+    }
+
+    res.ia.push_back(curr_idx);
+
+    return res;
+}
 
 namespace libcanon::internal {
 
