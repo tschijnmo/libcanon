@@ -217,6 +217,14 @@ public:
         return ends[point] - begins[point];
     }
 
+    /** Gets the colour of a point.
+     *
+     * The assigned colour will just be an integer that is equal for all points
+     * in the same cell and is ordered the same.
+     */
+
+    size_t get_colour(Point point) const { return ends[point]; }
+
     /** Gets an iterator for the points of a cell. */
 
     Array::const_iterator cell_begin(Point point) const
@@ -641,6 +649,39 @@ namespace internal {
             };
         }
 
+        /** The class representing the valences of a node.
+         *
+         * This class is designed to be directly interoperable with the string
+         * canonicalization facilities.
+         */
+
+        class Valence {
+            Valence(const Eldag& eldag, const Partition& partition, Point node,
+                const Perm<A>& perm)
+                : eldag{ eldag }
+                , partition{ partition }
+                , node{ node }
+                , perm{ perm }
+            {
+            }
+
+            /** Gets the colour of the node connected to a given slot.
+             */
+
+            Point operator[](size_t slot) const
+            {
+                size_t offset = perm >> slot;
+                return partition.get_colour(
+                    eldag.edges[eldag.ia[node + offset]]);
+            }
+
+        private:
+            const Eldag& eldag;
+            const Partition& partition;
+            Point node;
+            const Perm<A>& perm;
+        };
+
         /** Refines the automorphism of all nodes.
          *
          * In this function, the permutations and symmetries for each node will
@@ -648,9 +689,26 @@ namespace internal {
          * nodes.
          */
 
-        void refine_nodes()
+        void refine_nodes(const Eldag eldag)
         {
-            // TODO: Add implementation.
+            // Refinement for nodes are independent.
+            for (size_t i = 0; i < partition.size(); ++i) {
+
+                const auto curr_symm = symms[i];
+                if (!curr_symm) {
+                    // Nodes without symmetry.
+                    continue;
+                }
+
+                Valence valence{ eldag, i, perms[i] };
+
+                auto canon_res = canon_string(valence, *perms);
+
+                refined_perms[i] = std::make_unique<Perm<A>>(canon_res.first);
+                refined_symms[i] = std::move(canon_res.second);
+                perms[i] = refined_perms[i].get();
+                symms[i] = refined_symms[i].get();
+            }
         }
 
         /** Forms the orbit label array for all nodes.
