@@ -20,6 +20,7 @@
 
 #include <libcanon/perm.h>
 #include <libcanon/string.h>
+#include <libcanon/utils.h>
 
 namespace libcanon {
 
@@ -68,6 +69,24 @@ struct Eldag {
     {
         ia.reserve(n_nodes + 1);
         edges.reserve(n_edges);
+    }
+
+    /** Evaluates the hash of an Eldag.
+     *
+     * This is a very simple-minded hash function, just the values in the two
+     * arrays are combined.
+     */
+
+    size_t hash() const
+    {
+        size_t seed = 0;
+        for (size_t i : edges) {
+            combine_hash(seed, i);
+        }
+        for (size_t i : ia) {
+            combine_hash(seed, i);
+        }
+        return seed;
     }
 };
 
@@ -506,10 +525,7 @@ namespace internal {
          * useful for retrieval amongst it peers.
          */
 
-        size_t hash() const
-        {
-            return get_individualized();
-        }
+        size_t hash() const { return get_individualized(); }
 
     private:
         /** Refines the currently holding partition and symmetry.
@@ -518,7 +534,7 @@ namespace internal {
          * comes here.
          */
 
-        void refine() 
+        void refine()
         {
             // TODO: Add the actual refinement here.
         }
@@ -709,5 +725,22 @@ std::tuple<Simple_perm, Perms<A>, Sims_transv<Perm<A>>> canon_eldag(
 }
 
 } // End namespace libcanon.
+
+//
+// Std namespace injection for default hashing.
+//
+
+namespace std {
+
+/** Hasher for Eldag.
+ */
+
+template <> struct hash<libcanon::Eldag> {
+    size_t operator()(const libcanon::Eldag& eldag) const
+    {
+        return eldag.hash();
+    }
+};
+}
 
 #endif // LIBCANON_ELDAG_H
