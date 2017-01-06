@@ -248,6 +248,59 @@ public:
 
     Simple_perm make_perm() const { return { perm.begin(), perm.end() }; }
 
+    /** Iterator type for cells in the partition.
+     *
+     * Dereferencing the iterator will give a point in the cell.
+     */
+
+    class Cell_it {
+    public:
+        /** Constructs a cell iterator.
+         */
+
+        Cell_it(const Partition& partition, Point curr)
+            : partition{ partition }
+            , curr{ curr }
+        {
+        }
+
+        /** Increments a cell iterator.
+         */
+
+        Cell_it& operator++()
+        {
+            curr = partition.next_cell(curr);
+
+            return *this;
+        }
+
+        /** Dereferences a cell iterator.
+         */
+
+        Point operator*() const { return curr; }
+
+        /** Compares two iterators for equality.
+         */
+
+        bool operator==(const Cell_it& other)
+        {
+            return this->curr == other.curr;
+        }
+
+        /** Compares two iterators for inequality.
+         */
+
+        bool operator!=(const Cell_it& other) { return !(*this == other); }
+
+    private:
+        Point curr;
+        const Partition& partition;
+    };
+
+    Cell_it begin() const { return { *this, get_first() }; }
+
+    Cell_it end() const { return { *this, size() }; }
+
 private:
     /** Permutation of the given points */
     Array perm;
