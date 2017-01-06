@@ -95,6 +95,15 @@ public:
         std::fill(ends.begin(), ends.end(), size);
     }
 
+    /** Initializes an empty partition.
+     */
+    Partition()
+        : perm()
+        , begins()
+        , ends()
+    {
+    }
+
     /** Copy constructs a partition from a given one. */
 
     Partition(const Partition& base) = default;
@@ -173,16 +182,12 @@ public:
         return n_groups > 1;
     }
 
-    /** Tests if a partition is a leaf partition with only singletons. */
+    /** Tests if a partition is a discrete partition with only singletons. */
 
-    bool is_leaf() const
+    bool is_discrete() const
     {
-        for (size_t i = 0; i < size(); ++i) {
-            if (get_cell_size(i) != 1)
-                return false;
-        }
-
-        return true;
+        return std::all_of(begin(), end(),
+            [&](auto point) { return get_cell_size(point) == 1; });
     }
 
     /** Gets the size of the cell of a point. */
