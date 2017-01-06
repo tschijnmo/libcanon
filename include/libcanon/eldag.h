@@ -125,14 +125,13 @@ public:
 
     /** Splits a given partition by the given keys.
      *
-     * The keys should be given by an random access container holding the keys
-     * in the same order of the points in the cell as given by iteration by
-     * `begin_cell` and `end_cell`.
+     * The keys should be given by a functor taking a point to return an
+     * totally ordered value or reference.
      *
      * Whether splitting actually occurred will be returned as a boolean.
      */
 
-    template <typename T> bool split_by_key(Point point, const T& keys)
+    template <typename T> bool split_by_key(Point point, T get_key)
     {
         auto cell_size = get_cell_size(point);
         if (cell_size == 1)
@@ -145,7 +144,7 @@ public:
         std::vector<size_t> sorted_idxes(cell_size);
         std::iota(sorted_idxes.begin(), sorted_idxes.end(), 0);
         std::sort(sorted_idxes.begin(), sorted_idxes.end(),
-            [&](auto x, auto y) { return keys[x] < keys[y]; });
+            [&](auto x, auto y) { return get_key(x) < get_key(y); });
 
         size_t base_idx = begins[point];
         size_t curr_begin = base_idx; // Begin index of the current new cell.
@@ -156,7 +155,8 @@ public:
             auto dest_idx = base_idx + i;
             perm[dest_idx] = orig_cell[sorted_idxes[i]];
 
-            if (i == 0 || keys[sorted_idxes[i]] != keys[sorted_idxes[i - 1]]) {
+            if (i == 0
+                || get_key(sorted_idxes[i]) != get_key(sorted_idxes[i - 1])) {
                 // For a new group.
 
                 ++n_groups;
