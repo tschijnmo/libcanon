@@ -22,6 +22,9 @@
 
 #include <libcanon/utils.h>
 
+/** Libcanon public namespace.
+ */
+
 namespace libcanon {
 
 //
@@ -35,6 +38,7 @@ namespace libcanon {
  * built-in `size_t` is used for easy indexing of the array for pre-image and
  * image arrays.
  */
+
 using Point = size_t;
 
 /** Base type for permutation expressions.
@@ -53,30 +57,44 @@ using Point = size_t;
  * programming languages.
  *
  * Also supported are `~` operator for inversion and `|` operator for
- * multiplication.
+ * multiplication.  For the multiplication, it needs to be noted that
+ * permutations always acts from left mathematically.  So we actually have
+ *
+ * ```
+ * (p | q) << a == q << (p << a)
+ * ```
+ *
  *
  */
 
 template <typename T> class Perm_expr {
 
 public:
-    /** Gets the pre-image of a point. */
+    /** Gets the pre-image of a point.
+     */
+
     friend Point operator>>(const Perm_expr& perm, Point point)
     {
         return static_cast<const T&>(perm) >> point;
     }
 
-    /** Gets the image of a point. */
+    /** Gets the image of a point.
+     */
+
     friend Point operator<<(const Perm_expr& perm, Point point)
     {
         return static_cast<const T&>(perm) << point;
     }
 
-    /** Gets the accompanied action of a permutation. */
-    auto get_acc() const { return static_cast<const T&>(*this).acc(); }
+    /** Gets the accompanied action of a permutation.
+     */
 
-    /** Gets the size of the permutation domain */
-    size_t get_size() const { return static_cast<const T&>(*this).size(); }
+    auto acc() const { return static_cast<const T&>(*this).acc(); }
+
+    /** Gets the size of the permutation domain.
+     */
+
+    size_t size() const { return static_cast<const T&>(*this).size(); }
 };
 
 /** Atomic permutation type.
