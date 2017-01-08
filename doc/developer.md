@@ -16,7 +16,16 @@ Here we have a few conventions for developing in `libcanon`.
       guide][PPP].  
 
    2. Member names and accessors are named according to the [Google C++ style
-      guide][Google]
+      guide][Google].
+
+4. For functions inputs, generally references are used when the function does
+   not do anything with the deallocation of the object, pointers can be used
+   when no value, or `NULL` is a possibility, and unique pointers are used when
+   the function takes the ownership of the pointer.  Similar principles applies
+   for function return values.
+
+5. Parenthesis initialization is preferred over brace initialization, which is
+   only used when it is necessary.
 
 [Core]: https://github.com/isocpp/CppCoreGuidelines
 [WebKit]: https://webkit.org/code-style-guidelines/
