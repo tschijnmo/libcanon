@@ -299,13 +299,14 @@ private:
 /** Expression for inverted permutations.
  *
  * This is a lazy expression for inverted permutations.  A constant reference
- * is stored for its operand.
+ * is stored for its operand.  So copy, move, and assignment are all
+ * disallowed.
  */
 
 template <typename T> class Inv_perm : public Perm_expr<Inv_perm<T>> {
 public:
     Inv_perm(const T& operand)
-        : operand{ operand }
+        : operand_(operand)
     {
     }
 
@@ -313,26 +314,34 @@ public:
     // Permutation expression operations.
     //
 
-    /** Gets the pre-image of a point. */
+    /** Gets the pre-image of a point.
+     */
+
     friend Point operator>>(const Inv_perm& perm, Point point)
     {
-        return perm.operand << point;
+        return perm.operand_ << point;
     }
 
-    /** Gets the image of a point. */
+    /** Gets the image of a point.
+     */
+
     friend Point operator<<(const Inv_perm& perm, Point point)
     {
-        return perm.operand >> point;
+        return perm.operand_ >> point;
     }
 
-    /** Gets the accompanied action of a permutation. */
-    auto get_acc() const { return operand.get_acc() | operand.get_acc(); }
+    /** Gets the accompanied action of a permutation.
+     */
 
-    /** Gets the size of the permutation domain */
-    size_t get_size() const { return operand.size(); }
+    auto acc() const { return operand_.acc() | operand_.acc(); }
+
+    /** Gets the size of the permutation domain
+     */
+
+    size_t size() const { return operand_.size(); }
 
 private:
-    const T& operand;
+    const T& operand_;
 };
 
 /** Inverts a permutation expression.
@@ -355,9 +364,12 @@ template <typename T> auto operator~(const Perm_expr<T>& expr)
 template <typename T1, typename T2>
 class Perm_prod : public Perm_expr<Perm_prod<T1, T2>> {
 public:
+    /** Constructs the expression from the operands.
+     */
+
     Perm_prod(const T1& left, const T2& right)
-        : left{ left }
-        , right{ right }
+        : left_(left)
+        , right_(right)
     {
     }
 
@@ -365,20 +377,29 @@ public:
     // Permutation expression operations.
     //
 
-    /** Gets the pre-image of a point. */
+    /** Gets the pre-image of a point.
+     */
+
     friend Point operator>>(const Perm_prod& perm, Point point)
     {
-        return perm.left >> (perm.right >> point);
+        return perm.left_ >> (perm.right_ >> point);
     }
 
-    /** Gets the image of a point. */
+    /** Gets the image of a point.
+     *
+     * Despite our notation, the permutations still action from right, as in
+     * the convention of computational group theory.
+     */
+
     friend Point operator<<(const Perm_prod& perm, Point point)
     {
-        return perm.left << (perm.right << point);
+        return perm.right_ << (perm.left_ << point);
     }
 
-    /** Gets the accompanied action of a permutation. */
-    auto get_acc() const { return left.get_acc() ^ right.get_acc(); }
+    /** Gets the accompanied action of a permutation.
+     */
+
+    auto acc() const { return left_.acc() ^ right_.acc(); }
 
     /** Gets the size of the permutation domain
      *
@@ -386,13 +407,14 @@ public:
      * construction.
      */
 
-    size_t get_size() const { return left.size(); }
+    size_t size() const { return left_.size(); }
+
 private:
-    const T1& left;
-    const T2& right;
+    const T1& left_;
+    const T2& right_;
 };
 
-/** Multiplies to permutation expression.
+/** Multiplies two permutation expressions.
  *
  * The result is a lazily-evaluated permutation expression.  Note that the two
  * operands need to have the same size and accompanied action type.
@@ -401,10 +423,10 @@ private:
 template <typename T1, typename T2>
 auto operator|(const Perm_expr<T1>& left, const Perm_expr<T2>& right)
 {
-    static_assert(std::is_same<decltype(left.get_acc()),
-                      decltype(right.get_acc())>::value,
+    static_assert(
+        std::is_same<decltype(left.acc()), decltype(right.acc())>::value,
         "Two operands need to have the same accompanied action type.");
-    assert(left.get_size() == right.get_size()
+    assert(left.size() == right.size()
         && "Two operands need act on the same domain");
 
     return Perm_prod<T1, T2>(left, right);
