@@ -454,7 +454,7 @@ concept bool Transv = requires () {
     typename T::Perm;
 } && Simple_iterable<Transv, typename T::Perm> && requires (
     T transv, typename T::Perm perm) {
-    { transv.next } -> std::unique_ptr<T>;
+    { transv.next() } -> T*;
     { transv.has(perm) } -> bool;
     { transv.get_repr(perm) } -> const T::Perm*;
     { transv.insert(perm) };
@@ -469,30 +469,19 @@ concept bool Transv = requires () {
 
 namespace internal {
 
-    /**
-     * Tests if a transversal is a leaf.
-     *
-     * A leaf transversal is one without a next transversal.
-     */
-
-    template <typename T> bool is_leaf_transv(const T& transv)
-    {
-        return transv.next == nullptr;
-    }
-
     /** Process a permutation for a transversal.
      *
      * This is the core function for transversal system adaptation.  If the
-     * given permutation is in the subgroup next level, it will be added to the
-     * container for permutations to pass.  Or it will be added to the given
-     * transversal container if no representative is already present for its
-     * coset.
+     * given permutation is in the subgroup of the transversal, it will be
+     * added to the container for permutations to pass.  Or it will be added to
+     * the given transversal container if no representative is already present
+     * for its coset.
      */
 
     template <typename P, typename T, typename V>
     void proc_perm_for_transv(P&& perm, T& transv, V& perms_to_pass)
     {
-        if (transv.next->has(perm)) {
+        if (transv.has(perm)) {
             perms_to_pass.push_back(std::forward<P>(perm));
         } else {
             auto repr = transv.get_repr(perm);
@@ -507,8 +496,9 @@ namespace internal {
 /** Adapts a transversal system into another.
  *
  * The input and output transversal systems are assumed to be for the same
- * group up to the same leaf.  Note that this function takes the ownership of
- * the input transversal and deallocates it after the adaptation.
+ * group up to the same leaf.  Note that this function moves all permutations
+ * out of the input transversal system.  So the input transversal will become
+ * an empty one after the adaptation.
  *
  * The transversals can be any data type satisfying the concept of a
  * transversal system `Transv`.  Most importantly,
@@ -516,62 +506,69 @@ namespace internal {
  * - A type `Perm` needs to be defined for the permutation type it contains.
  *
  * - It needs to be an iterable of permutations in the transversal system.
- *   Note that identity should be skipped in the iteration, since it is always
- *   present.
+ *   Note that identity *should* be skipped in the iteration, since it is
+ *   always present.
  *
- * - It needs to have an attribute named `next` for a unique pointer to the
- *   next level of subgroup.
+ * - It needs to have a method named `next` for a pointer to the next level of
+ *   subgroup.  End of the chain should be given by a NULL value.
  *
  * - It needs to support methods `has`, `get_repr`, and `insert`, to test if a
  *   permutation is in the subgroup of the transversal system, to get a
- *   constant pointer to a coset representation (NULL if not present), and to
+ *   constant pointer to a coset representative (NULL if not present), and to
  *   insert a permutation into the transversal.
- *
  */
 
-template <typename T> void adapt_trasv(std::unique_ptr<T> input, T& output)
+template <typename T> void adapt_trasv(T& input, T& output)
 {
     // Gather all transversals to loop over them in reverse order.
     std::vector<T*> inputs{};
-    T* curr = input.get();
-    while (!internal::is_leaf_transv(*curr)) {
+    for (T* curr = &input; curr; curr = curr->next()) {
         inputs.push_back(curr);
-        curr = curr->next.get();
     }
 
-    for (auto curr_input = inputs.rbegin(); curr_input != input.rend();
-         ++curr_input) {
+    std::for_each(inputs.rbegin(), input.rend(), [&](T* curr_input) {
 
         using Perm_vector = std::vector<typename T::Perm>;
         Perm_vector passed_perms{};
-        for (auto& i : *curr_input) {
-            passed_perms.push_back(std::move(i));
-        }
-        Perm_vector perms_to_pass{};
+        std::move(begin(*curr_input), end(*curr_input),
+            std::back_inserter(passed_perms));
 
-        T* curr_output = &output;
-        while (!internal::is_leaf_transv(*curr_output)) {
+        for (T* curr_output = &output; curr_output;
+             curr_output = curr_output->next()) {
 
             std::vector<const typename T::Perm*> existing{};
             std::transform(begin(*curr_output), end(*curr_output),
-                std::back_inserter(existing), [](auto& perm) { return &perm; });
+                std::back_inserter(existing),
+                [](const auto& perm) { return &perm; });
+
+            // Passed permutation times identity. It is treated before the
+            // actual products so that we can use move whenever it is
+            // possible.
+
+            for (const auto& passed_perm : passed_perms) {
+                internal::proc_perm_for_transv(
+                    std::move(passed_perm), *curr_output, perms_to_pass);
+            }
+
+            // Other products, passed times existing.
 
             for (const auto& passed_perm : passed_perms) {
                 for (auto existing_perm : existing) {
                     internal::proc_perm_for_transv(passed_perm | *existing_perm,
                         *curr_output, perms_to_pass);
                 }
-                internal::proc_perm_for_transv(
-                    std::move(passed_perm), *curr_output, perms_to_pass);
             }
 
-            curr_output = curr_output->next.get();
             passed_perms.clear();
             passed_perms.swap(perms_to_pass);
 
         } // End loop output level.
-    } // End loop input level.
 
+    }); // End loop input level.
+
+    // If the two transversal are indeed for the same core kernel, we should
+    // have nothing left now.
+    assert(passed_perms.empty());
     return;
 }
 
