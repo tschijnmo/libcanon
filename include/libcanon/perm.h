@@ -100,7 +100,7 @@ public:
 /** Atomic permutation type.
  *
  * Here a permutation is stored redundantly by two arrays for both the preimage
- * of all points and the post image of all points.  Also a permutation can be
+ * of all points and the image of all points.  Also a permutation can be
  * accompanied by an action, which is going to be composed by `^` for
  * multiplication and `|` with itself for inversion.  In this way, when the
  * accompanied action is a product of the $\mathbb{Z}_2$ group encoded as
@@ -111,57 +111,80 @@ public:
 
 template <typename A> class Perm : public Perm_expr<Perm<A>> {
 public:
-    /** Constructs a permutation from a preimage array. */
+    /** Constructs a permutation from a preimage array.
+     */
+
     template <typename Input_it>
-    Perm(Input_it begin, Input_it end, A acc_input = 0)
-        : image{}
-        , pre_image{}
-        , acc{ acc_input }
+    Perm(Input_it begin, Input_it end, A acc = 0)
+        : images_()
+        , pre_images_()
+        , acc_(acc)
     {
         // To avoid the ambiguity in vector constructor when the iterator type
         // is integral.
-        std::copy(begin, end, std::back_inserter(pre_image));
-
-        size = pre_image.size();
-        set_image();
+        std::copy(begin, end, std::back_inserter(pre_images_));
+        set_images();
     }
 
-    /** Creates an identity permutation */
+    /** Creates an identity permutation.
+     */
+
     Perm(size_t size)
-        : image(size)
-        , pre_image(size)
-        , acc{ 0 }
+        : images_(size)
+        , pre_images_(size)
+        , acc_(0)
     {
-        std::iota(image.begin(), image.end(), 0);
-        std::iota(pre_image.begin(), pre_image.end(), 0);
+        std::iota(images_.begin(), images_.end(), 0);
+        std::iota(pre_images_.begin(), pre_images_.end(), 0);
+    }
+
+    /** Creates an empty permutation
+     *
+     * This constructor might be useful for cases where a placeholder is
+     * needed.  Its values does not actually constitute a valid permutation of
+     * any finite domain and their usage in any way might lead to undefined
+     * behaviour.
+     */
+
+    Perm()
+        : images_()
+        , pre_images_()
+        , acc_(0)
+    {
     }
 
     //  Here we need to put some default explicitly so that they will not be
     //  override by the generic constructor from expressions.
 
-    /** Copy-constructs a permutation. */
+    /** Copy-constructs a permutation.
+     */
+
     Perm(const Perm& perm) = default;
 
-    /** Move-constructs a permutation */
+    /** Move-constructs a permutation.
+     */
+
     Perm(Perm&& perm) = default;
 
-    /** Constructs a permutation from an expression. */
+    /** Constructs a permutation from an expression.
+     */
+
     template <typename T>
     Perm(const Perm_expr<T>& expr)
-        : size{ expr.size() }
-        , image{ size }
-        , pre_image{ size }
-        , acc{ expr.get_acc() }
+        : images_(expr.size())
+        , pre_images_(expr.size())
+        , acc_(expr.acc())
     {
         // Duplicate loops for cache friendliness.
         size_t i;
+        size_t size = expr.size();
 
         for (i = 0; i < size; ++i) {
-            image[i] = expr << i;
+            images_[i] = expr << i;
         }
 
         for (i = 0; i < size; ++i) {
-            pre_image[i] = expr >> i;
+            pre_images_[i] = expr >> i;
         }
     }
 
@@ -176,65 +199,69 @@ public:
 
     template <typename Input_it>
     Perm(size_t size, Input_it begin, Input_it end)
-        : size{ size }
-        , image{}
-        , pre_image{}
+        : images_()
+        , pre_images_()
+        , acc_(0)
     {
         Point_vec pts1(size);
         Point_vec pts2(size);
         std::iota(pts1.begin(), pts1.end(), 0);
 
+        // Src always points to the pre-image array.
         Point_vec* src = &pts1;
         Point_vec* dest = &pts2;
-
-        bool got_acc = false;
 
         std::for_each(begin, end, [&](auto element) {
             const Perm& perm{ *element };
             // Invalid iterator given if error happens here.
 
-            if (got_acc) {
-                acc = acc ^ perm.get_acc();
-            } else {
-                acc = perm.get_acc();
-            }
+            acc_ = acc_ ^ perm.acc();
 
             for (size_t i = 0; i < size; ++i) {
-                (*dest)[perm << i] = (*src)[i];
+                (*dest)[i] = (*src)[perm >> i];
             }
 
             std::swap(src, dest);
         });
 
-        pre_image = std::move(*src);
-        set_image();
+        pre_images_ = std::move(*src);
+        set_images();
     }
 
     //
     // Permutation expression operations.
     //
 
-    /** Gets the pre-image of a point. */
+    /** Gets the pre-image of a point.
+     */
+
     friend Point operator>>(const Perm& perm, Point point)
     {
-        return perm.pre_image[point];
+        return perm.pre_images_[point];
     }
 
-    /** Gets the image of a point. */
+    /** Gets the image of a point.
+     */
+
     friend Point operator<<(const Perm& perm, Point point)
     {
-        return perm.image[point];
+        return perm.images_[point];
     }
 
-    /** Gets the accompanied action of a permutation. */
-    auto get_acc() const { return acc; }
+    /** Gets the accompanied action of a permutation.
+     */
 
-    /** Gets the size of the permutation domain */
-    size_t get_size() const { return image.size(); }
+    A acc() const { return acc_; }
 
-    // Permutations are immutable.
-    Perm& operator=(const Perm& perm) = delete;
-    Perm& operator=(Perm&& perm) = delete;
+    /** Gets the size of the permutation domain.
+     */
+
+    size_t size() const { return images_.size(); }
+
+    // Default assignment behaviour.
+
+    Perm& operator=(const Perm& perm) = default;
+    Perm& operator=(Perm&& perm) = default;
 
     /** Gets the earliest point moved by the permutation.
      *
@@ -243,28 +270,30 @@ public:
 
     Point get_earliest_moved() const
     {
-        for (Point i = 0; i < size; ++i) {
-            if (i != *this << i)
-                return i;
+        Point i;
+        for (i = 0; i < size(); ++i) {
+            if (i != *this >> i)
+                break
         }
-        return size;
+        return i;
     }
 
 private:
-    /** Sets the image array from the pre-image array */
-    void set_image()
+    /** Sets the image array from the pre-image array.
+     */
+
+    void set_images()
     {
-        image.resize(size);
-        for (size_t i = 0; i < size; i++) {
-            image[pre_image[i]] = i;
+        images_.resize(size());
+        for (size_t i = 0; i < size(); ++i) {
+            images_[pre_images_[i]] = i;
         }
     }
 
-    size_t size;
     using Point_vec = std::vector<Point>;
-    Point_vec image;
-    Point_vec pre_image;
-    A acc;
+    Point_vec images_;
+    Point_vec pre_images_;
+    A acc_;
 };
 
 /** Expression for inverted permutations.
