@@ -1,4 +1,6 @@
-/** Generic code for Sims transversal systems
+/** \file
+ *
+ * Generic code for Sims transversal systems.
  *
  * The code in this section can be used not only for string canonicalization
  * problem, it can be used for other problem as well, since it is fully
@@ -29,19 +31,22 @@ public:
     // Required by transversal interface
     //
 
-    /** The type of permutations contained. */
+    /** The type of permutations contained.
+     */
+
     using Perm = P;
 
-    /** Unique pointer to the next level of transversal */
-    std::unique_ptr<Sims_transv> next;
+    /** Tests if the permutation could be in this subgroup.
+     */
 
-    /** Tests if the permutation could be in this subgroup. */
-    bool has(const P& perm) { return target == (perm << target); }
+    bool has(const P& perm) { return target_ == (perm << target_); }
 
-    /** Gets the coset representative of a permutation. */
-    const P* get_repr(const P& perm) { return get_repr(perm >> target); }
+    /** Gets the coset representative of a permutation.
+     */
 
-    /** Inserts a permutation into the transversal system
+    const P* get_repr(const P& perm) { return get_repr(perm >> target_); }
+
+    /** Inserts a permutation into the transversal system.
      *
      * The given permutation is inserted only when there is no representative
      * for that coset yet.
@@ -49,10 +54,24 @@ public:
 
     template <typename T> void insert(T&& perm)
     {
-        Point label = perm >> target;
-        if (label == target || transv[label])
+        Point label = perm >> target_;
+        if (label == target_ || transv_[label])
             return;
-        transv[label] = std::make_unique<P>(std::forward<T>(perm));
+        transv_[label] = std::make_unique<P>(std::forward<T>(perm));
+    }
+
+    /** Gets the pointer to the next level of transversal system.
+     */
+
+    Sims_transv* next() const { return next_.get(); }
+
+    /** Gets a new next level of the transversal system.
+     */
+
+    void set_next(std::unique_ptr<Sims_transv> new_next)
+    {
+        next_.swap(new_next);
+        return;
     }
 
     //
@@ -69,19 +88,18 @@ public:
 
     void insert(std::unique_ptr<P> perm)
     {
-        Point label = *perm >> target;
-        if (label == target)
+        Point label = *perm >> target_;
+        if (label == target_)
             return;
-        transv[label] = std::move(perm);
+        transv_[label] = std::move(perm);
     }
 
-    /**
-     * Gets a representative for the coset of moving the given point to target.
+    /** Gets a representative for the coset moving the given point to target.
      */
 
     const P* get_repr(Point point)
     {
-        const auto& found = transv[point];
+        const auto& found = transv_[point];
 
         // Slight redundancy for clarity.
         if (found) {
@@ -91,17 +109,24 @@ public:
         }
     }
 
-    /**
-     * Creates a transversal system.
+    /** Creates a transversal system.
      */
 
     Sims_transv(size_t target, size_t size)
-        : target{ target }
-        , transv{ size }
+        : target_(target)
+        , transv_(size)
     {
     }
 
-    Point get_target() const { return target; }
+    /** Gets the target of the Sims transversal.
+     */
+
+    Point target() const { return target_; }
+
+    /** Gets the size of the permutation domain for the transversal.
+     */
+
+    size_t size() const { return transv_.size(); }
 
     /** Conjugates the group formed by the transversal system.
      *
@@ -135,55 +160,94 @@ public:
     }
 
 private:
-    const Point target;
+    /** The target point for the transversal system.
+     *
+     * The permutations are organized by the point that is moved into the
+     * target.
+     */
+
+    const Point target_;
+
     using Transv_container = std::vector<std::unique_ptr<P>>;
-    Transv_container transv;
+
+    /** The actual container for transversals.
+     */
+
+    Transv_container transv_;
+
+    /** Unique pointer to the next level of transversal.
+     */
+
+    std::unique_ptr<Sims_transv> next_;
 
     //
     // Iteration over a transversal.
     //
 
-    /**
-     * Iterator type for the sims transversal system.
+    /** Iterator type for the sims transversal system.
      *
-     * This is a simple forward iterator.
+     * This is a simple input iterator.
      */
 
     class Sims_transv_it {
 
-        /** Constructs an iterator. */
+        /** Constructs an iterator.
+         */
+
         Sims_transv_it(size_t curr, const Sims_transv& transv)
-            : curr{ curr }
-            , transv{ transv }
+            : curr_(curr)
+            , transv_(&transv)
         {
-            if (curr == 0)
+            // Forward to a valid index unless we are building an end.
+            if (curr_ < transv.size())
                 find_next_present();
         }
 
+        /** Increments the iterator.
+         */
+
         Sims_transv_it& operator++()
         {
-            ++curr;
+            ++curr_;
             find_next_present();
             return *this;
         }
 
-        P& operator*() { return *(transv.transv[curr]); }
+        /** Deference the iterator.
+         *
+         * A constant reference to a permutation will be returned.
+         */
+
+        const P& operator*() { return *transv_->transv_[curr]; }
+
+        /** Compares iterators for equality.
+         */
 
         bool operator==(const Sims_transv_it& sentinel)
         {
-            return (curr == sentinel.curr);
+            return (curr_ == sentinel.curr_);
         }
+
+        /** Compares for inequality.
+         */
 
         bool operator!=(const Sims_transv_it& sentinel)
         {
-            return (curr != sentinel.curr);
+            return (curr_ != sentinel.curr_);
         }
 
     private:
-        size_t curr;
-        const Sims_transv& transv;
+        /** The current index in the transversal vector.
+         */
 
-        /** Increments the current index to a one with permutation.
+        size_t curr_;
+
+        /** Pointer to the transversal system.
+         */
+
+        const Sims_transv* transv_;
+
+        /** Increments the current index to one with a permutation.
          *
          * If the current index has a permutation, nothing will be done.  If no
          * more permutation is available, the index will be set to the end.
@@ -191,21 +255,21 @@ private:
 
         void find_next_present()
         {
-            while (!transv.get_repr(curr) && curr < transv.get_size()) {
-                ++curr;
+            while (!transv_->get_repr(curr_) && curr_ < transv_->size()) {
+                ++curr_;
             }
         }
     };
 
 public:
-    friend Sims_transv_it begin(const Sims_transv& container)
+    friend auto begin(const Sims_transv& container)
     {
-        return { 0, container };
+        return Sims_transv_it(0, container);
     }
 
-    friend Sims_transv_it end(const Sims_transv& container)
+    friend auto end(const Sims_transv& container)
     {
-        return { container.transv.size(), container };
+        return Sims_transv_it(container.size(), container);
     }
 };
 
