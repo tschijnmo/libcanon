@@ -410,6 +410,8 @@ namespace internal {
         auto add2result = [&](const auto& perm) {
             if (tentative.has(perm)) {
                 // Special treatment since identity is never explicitly stored.
+                //
+                // TODO: better treatment of moving semantics.
                 result.insert_gen(perm);
             } else {
                 result.insert_gen(perm | ~tentative.get_repr(perm));

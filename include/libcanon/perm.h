@@ -195,6 +195,9 @@ public:
      *
      * Compared with implementation based on expression templates, this
      * specialized function is a lot more cache-friendly.
+     *
+     * When an empty iterator is given, the result will be the identity
+     * permutation.
      */
 
     template <typename Input_it>
@@ -544,6 +547,8 @@ template <typename T> void adapt_trasv(T& input, T& output)
             // Passed permutation times identity. It is treated before the
             // actual products so that we can use move whenever it is
             // possible.
+            //
+            // TODO: fix the moving semantics here.
 
             for (const auto& passed_perm : passed_perms) {
                 internal::proc_perm_for_transv(
