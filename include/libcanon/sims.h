@@ -10,6 +10,7 @@
 #ifndef LIBCANON_SIMS_H
 #define LIBCANON_SIMS_H
 
+#include <cassert>
 #include <memory>
 #include <vector>
 
@@ -72,6 +73,14 @@ public:
     {
         next_.swap(new_next);
         return;
+    }
+
+    /** Releases pointer to the next level of the transversal system.
+     */
+
+    return std::unique_ptr<Sims_transv> release_next()
+    {
+        return std::move(next_);
     }
 
     //
@@ -284,15 +293,19 @@ namespace internal {
      * In this container, the Jerrum filter is applied to all given
      * permutations so that the number of permutations is guaranteed to be at
      * most $n - 1$, where $n$ denotes the size of the permutation domain.
+     *
+     * This class subclasses normal vector over permutations, so that all the
+     * iteration facility is immediately available.
      */
 
     template <typename P> class Jerrum_container : public std::vector<P> {
     public:
-        /** Constructs the jerrum container */
+        /** Constructs an empty Jerrum container.
+         */
+
         Jerrum_container(size_t size)
-            : std::vector<P>{}
-            , size{ size }
-            , graph(size) // For C++11 compatibility.
+            : std::vector<P>()
+            , graph(size)
         {
             this->reserve(size - 1);
         }
@@ -305,6 +318,9 @@ namespace internal {
 
         void insert_gen(P gen)
         {
+            size_t size = graph_.size(); // Size of the permutation domain.
+            assert(gen.size() == size);
+
             while (true) {
                 Point earliest = gen.get_earliest_moved();
                 if (earliest == size)
@@ -313,15 +329,22 @@ namespace internal {
 
                 std::vector<const P*> stack{};
                 bool found_path = find_path(earliest, dest, stack);
+
                 if (!found_path) {
                     // When no loop is found.
-                    size_t idx = this->size();
-                    this->push_back(gen);
-                    graph[earliest].push_back({ dest, idx });
+                    size_t idx = this->size(); // Number of perms we have.
+                    this->push_back(std::move(gen));
+                    graph_[earliest].push_back({ dest, idx });
                     break;
                 } else {
-                    P prod{ size, stack.begin(), stack.end() };
-                    P transfed{ prod | ~gen };
+                    // When a loop if formed by the new perm.
+                    //
+                    // The product of all permutations along the path.
+                    P prod(size, stack.begin(), stack.end());
+                    // Here construction from an iterator of pointers are
+                    // required.
+
+                    P transfed(prod | ~gen);
                     gen = std::move(transfed);
                     continue;
                 }
@@ -329,8 +352,10 @@ namespace internal {
         }
 
     private:
-        /**
-         * Finds a path from the given source to the given destination.
+        /** Finds a path from the given source to the given destination.
+         *
+         * Note that this depth-first algorithm assumes that the graph cannot
+         * be cyclic, which is always the case here.
          */
 
         bool find_path(
@@ -339,8 +364,8 @@ namespace internal {
             if (src == dest)
                 return true;
 
-            for (const auto& i : graph[src]) {
-                stack.push_back(&((*this)[i.second]));
+            for (const auto& i : graph_[src]) {
+                stack.push_back(&(*this)[i.second]);
                 if (find_path(i.first, dest, stack)) {
                     return true;
                 } else {
@@ -351,13 +376,20 @@ namespace internal {
             return false;
         }
 
-        // For each point, we store its destinations and index in the base
-        // vector for the corresponding permutation.
+        //
+        // Data fields
+        //
+
         using Row = std::vector<std::pair<Point, size_t>>;
         using Graph = std::vector<Row>;
 
-        size_t size;
-        Graph graph;
+        /** The Jerrum connection graph.
+         *
+         * For each point, we store its destinations and index in the base
+         * vector for the corresponding permutation.
+         */
+
+        Graph graph_;
     };
 
     /** Forms the Schreier generators.
@@ -370,9 +402,11 @@ namespace internal {
     std::vector<P> form_schreier_gens(size_t size,
         const Sims_transv<P>& tentative, const std::vector<P>& gens)
     {
-        Jerrum_container<P> result{ size };
+        Jerrum_container<P> result(size);
 
         // Add perm \bar{perm}^- to the result.
+        //
+        // TODO: Make sure the correctness of the theorem.
         auto add2result = [&](const auto& perm) {
             if (tentative.has(perm)) {
                 // Special treatment since identity is never explicitly stored.
@@ -398,6 +432,10 @@ namespace internal {
      * build a transversal system of the pointwise stabilizer subgroup of that
      * point.  Null will be returned when all points up to the given size are
      * stabilized.
+     *
+     * The transversal will be returned, and the generators will be modified to
+     * the Schreier generators generating the stabilizer subgroup of the
+     * selected point.
      */
 
     template <typename P>
@@ -418,18 +456,25 @@ namespace internal {
 
             tentative = std::make_unique<Sims_transv<P>>(target, size);
 
-            size_t curr_idx = 0;
-            while (curr_idx < orbit.size()) {
+            //
+            // Standard algorithm for orbits and coset representatives.
+            //
+            // Just here we need to be careful that we need the permutations to
+            // permute the points in the orbit into the target.
+            //
+
+            for (size_t curr_idx = 0; curr_idx < orbit.size(); ++curr_idx) {
                 auto curr_point = orbit[curr_idx];
                 auto curr_perm = tentative.get_repr(curr_point);
 
                 for (const auto& i : gens) {
-                    auto loc = i << curr_point;
+                    auto new_point = i << curr_point;
                     auto repr = tentative.get_repr(loc);
-                    if (loc == target || repr)
+                    if (new_point == target || repr)
                         continue;
+
                     // Now we have a new point in orbit.
-                    orbit.push_back(loc);
+                    orbit.push_back(new_point);
 
                     if (curr_point == target) {
                         tentative.insert(~i);
@@ -454,7 +499,7 @@ namespace internal {
             = form_schreier_gens(size, *tentative, gens);
         gens.swap(schreier_gens);
 
-        return std::move(tentative);
+        return tentative;
     } // End function build_sims_transv
 
 } // End namespace internal
@@ -464,25 +509,30 @@ namespace internal {
  * For performance reason, here we takes a vector of generators by value.  The
  * Sims structured is always built on the earliest point not stabilized by the
  * group.
+ *
+ * A null pointer will be returned if the generators only generate the trivial
+ * group.
  */
 
 template <typename P>
 std::unique_ptr<Sims_transv<P>> build_sims_sys(size_t size, std::vector<P> gens)
 {
-    using Ptr2transv = std::unique_ptr<Sims_transv<P>>;
 
-    Ptr2transv head;
-    Ptr2transv* dest = &head;
-    Ptr2transv curr;
+    // The dummy head for the transversal system.
+    Sims_transv head(0, size);
+
+    Sims_transv* curr = &head;
+    std::unique_ptr<P> new_transv;
+
     Point begin = 0;
 
-    while ((curr = internal::build_sims_transv(begin, size, gens))) {
-        begin = curr->get_target();
-        *dest = std::move(curr);
-        dest = &dest->next;
+    while ((new_transv = internal::build_sims_transv(begin, size, gens))) {
+        begin = new_transv->get_target();
+        curr->set_next(std::move(new_transv));
+        curr = curr->next();
     }
 
-    return std::move(head);
+    return head.release_next();
 }
 
 } // End namespace libcanon
