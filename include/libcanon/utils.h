@@ -43,6 +43,22 @@ template <typename T> void combine_hash(T& seed, T value)
     seed ^= value + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 }
 
+/** Ensures the type to be a unique pointer.
+ *
+ * Similar to the standard `remove_reference` meta function, the type
+ * inside the unique pointer will be defined on the `type` attribute.
+ */
+
+template <typename T> struct Ensure_unique_ptr {
+};
+
+template <typename T> struct Ensure_unique_ptr<std::unique_ptr<T>> {
+    using type = T;
+};
+
+template <typename T>
+using Ensure_unique_ptr_t = typename Strip_unique_ptr<T>::type;
+
 } // End namespace libcanon.
 
 #endif // LIBCANON_UTILS_H
