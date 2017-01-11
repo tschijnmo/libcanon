@@ -48,6 +48,8 @@
 #ifndef LIBCANON_CANON_H
 #define LIBCANON_CANON_H
 
+#include <algorithm>
+#include <cassert>
 #include <memory>
 #include <type_traits>
 #include <unordered_map>
@@ -181,220 +183,328 @@ concept bool Refiner_container = requires (
 // Some internal data structure and algorithms.
 //
 
-namespace internal {
-
-    /** Applies given action for each children of the given coset.
-     *
-     * Basically the same semantics as the `for_each` algorithm in the standard
-     * library, just here the callback is called with an extra boolean argument
-     * giving if the children is the first one.
-     *
-     * Note that the given coset is assumed to be non-leaf.  And the result is
-     * assumed to be non-empty.
-     */
-
-    template <typename R, typename H>
-    void for_each_children(
-        R& refiner, const typename R::Coset& coset, H handler)
-    {
-        auto children = refiner.refine(coset);
-        auto child_iter = begin(children);
-        auto child_sentinel = end(children);
-
-        handler(*child_iter, true);
-        for (++child_iter; child_iter != child_sentinel; ++child_iter) {
-            handler(*child_iter, false);
-        }
-    }
-
-    /** Experimental path from a given coset.
-     *
-     * A candidate and its permutation from the successive refinement of the
-     * given coset can be queried.  And all candidates can be added if it is
-     * needed, given an automorphism group.
-     */
-
-    template <typename R> class Exp_path {
-    public:
-        /**
-         * Initialize experimental path object.
-         */
-
-        Exp_path(R& refiner, const typename R::Structure& obj,
-            const typename R::Coset& coset)
-            : refiner{ refiner }
-            , obj{ obj }
-            , base{ &coset }
-        {
-            if (refiner.is_leaf(coset)) {
-                perm = std::make_unique<R::Perm>(refiner.get_a_perm(coset));
-                form = std::make_unique<R::Structure>(obj >> *perm);
-            } else {
-                internal::for_each_children(
-                    refiner, coset, [this](auto&& children, bool if_first) {
-                        this->children.insert(
-                            std::forward<decltype(children)>(children));
-                    });
-                curr = std::make_unique<Exp_path>(
-                    refiner, obj, *(children.begin()));
-            }
-        }
-
-        /**
-         * Sets the base point of the experimental path node.
-         */
-
-        void set_base(const typename R::Coset& coset) { base = &coset; }
-
-        /**
-         * Gets the form in a leaf node.
-         */
-        const auto& get_form() { return *form; }
-
-        /**
-         * Gets the permutation in a leaf node.
-         */
-
-        const auto& get_perm() { return *perm; }
-
-        /**
-         * Gets the leaf experimental path node.
-         */
-
-        const Exp_path& get_a_leaf() const
-        {
-            return curr ? curr->get_a_leaf() : *this;
-        }
-
-        std::unique_ptr<typename R::Transv> prepare_transv() const
-        {
-            return refiner.create_transv(
-                *base, curr ? curr->prepare_transv() : nullptr);
-        }
-
-        /** Adds all candidates from the given coset.
-         *
-         * All candidates from the coset `base` will be added to the given
-         * container.
-         *
-         * \param aut A pointer to a transversal system giving the automorphism
-         * group of the object in the conjugated subgroup of the base.  It is
-         * assumed that the transversal system is already adapted to the
-         * current subgroup chain.
-         *
-         * \return A pointer to a new transversal system for the same subgroup
-         * of the automorphism group.
-         */
-
-        std::unique_ptr<typename R::Transv> add_all_candidates(
-            std::unique_ptr<typename R::Transv> aut,
-            typename R::Container& container)
-        {
-            if (form) {
-                container.emplace(std::move(*form), std::move(*perm));
-            }
-
-            while (curr) {
-                aut->next
-                    = curr->add_all_candidates(std::move(aut.next), container);
-
-                const auto& anchor = *(curr->base);
-                for (const auto& i : aut) {
-                    children.erase(anchor >> i);
-                }
-                children.erase(anchor);
-
-                if (!children.empty()) {
-                    curr = std::make_unique<Exp_path>(
-                        refiner, obj, children.begin());
-                    auto new_aut = curr.prepare_transv();
-                    adapt_transv(std::move(aut), new_aut.get());
-                    aut = std::move(new_aut);
-                } else {
-                    curr = nullptr;
-                }
-            }
-
-            return std::move(aut);
-        }
-
-    private:
-        R& refiner;
-        const typename R::Structure& obj;
-        const typename R::Coset* base;
-
-        std::unordered_set<typename R::Coset> children;
-        std::unique_ptr<Exp_path> curr;
-
-        std::unique_ptr<typename R::Perm> perm;
-        std::unique_ptr<typename R::Structure> form;
-    };
-
-} // End namespace internal
-
-/**
- * Adds all candidates from the successive refinement of the given coset.
+/** Experimental path from a given coset.
  *
- * This is the core function of the canonicalization module.  All candidates
- * from the successive refinement of the given coset is going to be added to the
- * given container.
+ * The central class for the generic canonicalization algorithm.  All core work
+ * are performed here.
+ *
+ * When given leaf cosets, here a permutation and the corresponding form is
+ * stored.  For non-leaf cosets, here we store all its children, one of which
+ * is guaranteed to have a path extended from it.
+ *
+ * A candidate and its permutation from the successive refinement of the given
+ * coset can be queried.  And all candidates descending from it can be added if
+ * it is needed, with or without a given automorphism group.
+ *
+ * Note that this class is neither copyable or assignable.
  */
 
-template <typename R>
-auto add_all_candidates(R& refiner, const typename R::Structure& obj,
-    const typename R::Coset& coset, typename R::Container& container)
-{
-    std::unique_ptr<typename R::Transv> aut{}; // Named return value.
+template <typename R> class Exp_path {
+public:
+    //
+    // Data types for the refiner.
+    //
 
-    if (refiner.is_leaf(coset)) {
-        auto perm = refiner.get_a_perm(coset);
-        container.emplace(obj >> perm, std::move(perm));
-        aut = refiner.create_transv(coset, nullptr);
+    using Coset = Coset_of<R>;
+    using Structure = Structure_of<R>;
+    using Transv = Transv_of<R>;
+    using Act_res = Act_res_of<R>;
+    using Perm = Perm_of<R>;
+
+    /**
+     * Initialize experimental path object.
+     */
+
+    Exp_path(R& refiner, const Structure& obj, const Coset& coset)
+        : refiner_(refiner)
+        , obj_(obj)
+        , base_(&coset)
+    {
+        if (refiner.is_leaf(obj, coset)) {
+            // For leaf states, we store the permutation and the action result.
+
+            perm_ = std::make_unique<Perm>(refiner_.get_a_perm(coset));
+            form_ = std::make_unique<Act_res>(refiner_.act(*perm, obj));
+        } else {
+            // For non-leaf states, we store all the refinements and extend a
+            // path from one of the children.
+
+            auto children = refiner.refine(coset);
+            auto child_iter = begin(children);
+            auto child_sentinel = end(children);
+
+            // Non-leaf cosets are guaranteed to have non-empty refinement.
+            assert(child_iter != child_sentinel);
+
+            std::for_each(child_iter, child_sentinel, [&](auto&& child) {
+                children_.emplace(
+                    std::forward<decltype(child)>(child), nullptr);
+            });
+
+            set_curr();
+        }
     }
 
-    using Exp_path_type = internal::Exp_path<R>;
-    using Exp_path_container
-        = std::unordered_map<typename R::Coset, std::unique_ptr<Exp_path_type>>;
-    Exp_path_container pending{};
+    //
+    // Disabling of some unnecessary operations.
+    //
 
-    internal::for_each_children(refiner, coset, [&](auto child, bool if_first) {
-        if (if_first) {
-            std::unique_ptr<typename R::Transv> inner_aut;
-            inner_aut = add_all_candidates(refiner, obj, child, container);
-            aut = refiner.create_transv(coset, std::move(inner_aut));
+    Exp_path(const Exp_path& exp_path) = delete;
+    Exp_path(Exp_path&& exp_path) = delete;
+    Exp_path& operator=(const Exp_path& exp_path) = delete;
+    Exp_path& operator=(Exp_path&& exp_path) = delete;
+
+    /** Gets the form in a leaf node.
+     */
+
+    Act_res& form() const
+    {
+        assert(is_leaf());
+        return *form_;
+    }
+
+    /** Gets the permutation in a leaf node.
+     */
+
+    Perm& perm() const
+    {
+        assert(is_leaf());
+        return *perm_;
+    }
+
+    /** Gets the leaf experimental path node.
+     */
+
+    const Exp_path& get_a_leaf() const
+    {
+        return is_leaf() ? *this : curr_exp_path_->get_a_leaf();
+    }
+
+    /** Prepares a transversal system best suited for the current path.
+     *
+     * This transversal system has the current nodes at each level as the
+     * anchor points.
+     */
+
+    std::unique_ptr<Transv> prepare_transv() const
+    {
+        if (is_leaf()) {
+            return nullptr;
         } else {
-            auto exp_path
-                = std::make_unique<Exp_path_type>(refiner, obj, child);
-            const auto& leaf = exp_path.get_a_leaf();
+            // For non-leaf nodes.
+            auto transv = refiner.create_transv(base_, *curr_coset_);
+            transv.set_next(curr_exp_path_->prepare_transv());
+            return transv;
+        }
+    }
 
-            auto prev_perm = container.find(leaf.get_form());
-            if (prev_perm == container.end()) {
-                auto res
-                    = pending.emplace(std::move(child), std::move(exp_path));
-                // Reset the pointer to base.
-                auto& kv_pair = *res.first;
-                kv_pair.second->set_base(kv_pair.first);
+    /** Adds all candidates from the given coset with automorphism group.
+     *
+     * All candidates from the base coset will be added to the given container.
+     *
+     * \param aut A pointer to a transversal system giving the automorphism
+     * group of the object in the conjugated subgroup of the base.  It is
+     * assumed that the transversal system is already adapted to the current
+     * subgroup chain.
+     *
+     * \return A pointer to a new transversal system for the same subgroup of
+     * the automorphism group.
+     */
+
+    template <typename C>
+    std::unique_ptr<Transv> add_all_candidates(
+        std::unique_ptr<Transv> aut, C& container)
+    {
+        if (is_leaf()) {
+            // Both the form and the permutation can be safely moved since
+            // they are not going to be used after this method is called.
+            container.emplace(std::move(*form_), std::move(*perm_));
+            return nullptr;
+        }
+
+        while (curr_coset_) {
+            // Add all candidates from the current children.
+            //
+            // Here care is taken for the undefined evaluation order.
+            auto new_inner = curr_exp_path_->add_all_candidates(
+                aut.release_next(), container);
+            aut.set_next(std::move(new_inner));
+
+            // Remove all identical siblings of the current children.
+            const auto& anchor = *curr_coset_;
+            for (const auto& i : aut) {
+                auto n_erased = children_.erase(refiner_.left_mult(i, anchor));
+                assert(n_erased == 1);
+            }
+            auto n_erased = children_.erase(anchor);
+            assert(n_erased == 1);
+
+            if (!children.empty()) {
+                set_curr();
+                auto new_aut = prepare_transv();
+                adapt_transv(*aut, *new_aut);
+                aut = std::move(new_aut);
             } else {
-                aut.emplace(prev_perm->second | ~leaf.ger_perm());
+                curr_coset_ = nullptr;
+                curr_exp_path_ = nullptr;
             }
         }
-    });
 
-    while (!pending.empty()) {
-        auto& trial = *pending.begin();
-        auto& child = trial.first;
-        auto& exp_path = *trial.second; 
-        auto new_aut = exp_path.prepare_transv();
-        adapt_transv(std::move(aut), new_aut.get());
-        aut = std::move(new_aut);
-        aut.next = exp_path.add_all_candidates(std::move(aut.next), container);
-        for (const auto& i : aut) {
-            pending.erase(child >> i);
-        }
-        pending.erase(child);
+        return aut;
     }
 
-    return aut;
+    /** Adds all candidates from without known automorphism.
+     *
+     * All candidates from the coset `base` will be added to the given
+     * container.
+     *
+     * A pointer to a new transversal system from the conjugate group for the
+     * base coset is returned.
+     */
+
+    template <typename C>
+    std::unique_ptr<Transv> add_all_candidates(C& container)
+    {
+        std::unique_ptr<Transv> aut{}; // Named return value.
+
+        if (is_leaf()) {
+            container.emplace(std::move(*form_), std::move(*perm_));
+            return aut;
+        }
+
+        aut = create_transv(base_, *curr_coset_);
+        aut->set_next(curr_exp_path_->add_all_candidates(container));
+
+        // Create experimental paths for all refinement to find all the
+        // identical siblings.
+        set_paths();
+
+        // Loop over all the experimental path by iterator for unordered_map
+        // for faster removal without hashing and equality comparison involved.
+
+        auto child_it = children_.begin();
+        while (child_it != children.end()) {
+            Exp_path* curr = child_it->second.get();
+
+            const auto& leaf = curr->get_a_leaf();
+
+            auto existing = container.find(leaf.form());
+            if (existing == container.end()) {
+                // Non identical siblings will be treated later.
+                ++i;
+                continue;
+            } else {
+                // When we find an identical sibling.
+                if (curr != curr_exp_path_) {
+                    // Skip identity permutation.
+                    aut->insert(existing->second | ~leaf.perm());
+                }
+                auto to_remove = i; // Make a copy of the iterator.
+                ++i;
+                children_.erase(to_remove);
+                // Note that the pointers curr_exp_path_ and curr_coset_
+                // will be invalidated after this loop.
+            }
+        }
+
+        // Now we have treated an identical class of siblings and got a
+        // complete description of the automorphism group.
+
+        if (set_curr()) {
+            auto new_aut = create_transv(base_, *curr_coset_);
+            adapt_transv(*aut, *new_aut);
+            auto final_aut
+                = this->add_all_candidates(std::move(new_aut), container);
+            return final_aut;
+        } else {
+            return aut;
+        }
+    }
+
+private:
+    //
+    // Internal utility methods.
+    //
+
+    /** Sets the current coset and experimental path to begin of children.
+     *
+     * False will be returned if the children container is empty.
+     */
+
+    bool set_curr()
+    {
+        auto begin = children_.begin();
+        if (begin == children_.end())
+            return false;
+
+        curr_coset_ = &begin->first;
+        set_path(*begin);
+        curr_exp_path_ = begin->second.get();
+
+        return true;
+    }
+
+    /** Sets the paths for all children.
+     */
+
+    void set_paths()
+    {
+        for (auto i& : children_) {
+            set_path(i);
+        }
+    }
+
+    /** Sets the path of a given child.
+     *
+     * The path is created only when there is no one already.
+     */
+
+    void set_path(Children::reference child)
+    {
+        if (!child.second) {
+            child.second
+                = std::make_unique<Exp_path>(refiner_, obj_, child.first);
+        }
+    }
+
+    /** Tests if an experimental path node is a leaf state.
+     */
+
+    bool is_leaf() const { return perm_; }
+
+    //
+    // Data fields.
+    //
+
+    // References to basic information for convenience.
+    R& refiner_;
+    const Structure& obj_;
+    const Coset& base_;
+
+    // For non-leaf nodes
+    using Children = std::unorderd_map<Coset, std::unique_ptr<Exp_path>>;
+    Children children_;
+    Coset* curr_coset_;
+    Exp_path* curr_exp_path_;
+
+    // For leaf nodes.
+    std::unique_ptr<Perm> perm_;
+    std::unique_ptr<Structure> form_;
+};
+
+/** Adds all candidates from the successive refinement of the given coset.
+ *
+ * This is a shallow wrapper over the actual methods in the Exp_path class.  In
+ * this way, a pure functional interface for the facility is available without
+ * having to touch the data structure.
+ */
+
+template <typename R, typename C>
+auto add_all_candidates(R& refiner, const Structure_of<R>& obj,
+    const Coset_of<R>& coset, C& container)
+{
+    Exp_path<R> exp_path(refiner, obj, coset);
+    return exp_path.add_all_candidates(container);
 }
 
 } // End namespace libcanon.
