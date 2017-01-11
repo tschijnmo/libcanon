@@ -41,6 +41,15 @@ namespace libcanon {
 
 using Point = size_t;
 
+/** The type for vectors of points.
+ *
+ * Since the points are identified by integral values, this vector can be used
+ * as a mapping from points to points, which is useful for things like image
+ * arrays and pre-image arrays.
+ */
+
+using Point_vec = std::vector<Point>;
+
 /** Base type for permutation expressions.
  *
  * This base type is for all kinds of expressions formed from permutations.
@@ -293,7 +302,6 @@ private:
         }
     }
 
-    using Point_vec = std::vector<Point>;
     Point_vec images_;
     Point_vec pre_images_;
     A acc_;
