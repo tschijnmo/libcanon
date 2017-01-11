@@ -128,35 +128,50 @@ using Transv_of = internal::Ensure_unique_ptr_t<std::result_of_t<
 // The refiner concept.
 // 
 
+/** The concept for a refiner.
+ *
+ * Here basically the kinds of operations needed for a refiner are all listed,
+ * mostly for documentation purpose.  So all expressions are added even if they
+ * are already checked in the type meta functions for refiners.
+ */
+
 template<typename R>
 concept bool Refiner = requires () {
-    typename R::Coset;
-    typename R::Perm;
-    typename R::Transv;
-    typename R::Structure;
-    typename R::Container;
-} && requires (R refiner, typename R::Coset coset, typename R::Structure obj, 
-        std::unique_ptr<typename R::Transv> transv, 
-        typename R::Transv* target_transv, typename R::Container container, 
-        typename R::Perm perm, typename R::Perm perm2) {
+    typename Coset_of<R>;
+    typename Structure_of<R>;
+    typename Perm_of<R>;
+    typename Action_res_of<R>;
+    typename Transv_of<R>;
+} && requires (R refiner,
+        Coset_of<R> coset, Structure_of<R> obj,
+        Perm_of_R<R> perm, Perm_of_R<R> perm2,
+        Transv_of_R<R> transv, Transv_of_R<R> target_transv) {
     // For refiner itself.
-    { refiner.refine(coset) } -> Simple_iterable<typename R::Coset>;
-    { refiner.is_leaf(coset) } -> bool;
-    { refiner.get_a_perm(coset) } -> typename R::Perm;
+    { refiner.refine(obj, coset) } -> Simple_iterable<Coset_of<R>>;
+    { refiner.is_leaf(obj, coset) } -> bool;
 
     // For the action.
-    { obj >> perm } -> R::Structure;
-    { coset >> perm } -> R::Coset;
-
-    // For the container.
-    { container.emplace(obj, perm) };
-    { container.emplace(obj, perm | ~perm2) };
+    { refiner.act(perm, obj) } -> Act_res_of<R>;
+    { refiner.left_mult(perm, coset) } -> Coset_of<R>;
 
     // For the transversal container.
-    {
-        refiner.create_transv(coset, transv) 
-    } -> std::unique_ptr<typename R::Transv>;
+    { transv.insert(perm | ~perm2) };
     { adapt_transv(transv, target_transv) }
+};
+
+/** Concept for a container able to work with a refiner.
+ *
+ * Here we require that the container is able to hold pairs of an action result
+ * and a permutation.  Also the container can be queried for the presence of
+ * any form, to yield a pair composed from an action result and a permutation.
+ */
+
+template<typename R, typename C>
+concept bool Refiner_container = requires (
+        Container container, Act_res_of<R> res, Perm_of<R> perm) {
+    { container.emplace(res, perm) };
+    { *container.find(res) } -> std::pair<const Act_res_of<R>, Perm_of<R>>;
+    typename Container::reference;
 };
 
 // clang-format on
