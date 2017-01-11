@@ -2,15 +2,13 @@
  *
  * General canonicalization of combinatorial objects.
  *
- *
  * Synopsis
  * --------
  *
- * This file contains the driver functions for the canonicalization of
- * combinatorial objects, primarily by function \ref add_all_candidates, which
- * is very general for different kinds of combinatorial structures.  The
- * problem specific information should be mostly put into the refiner object,
- * whose type must implement the refiner protocol, which is defined as follows.
+ * This file contains generic driver functions for the canonicalization of
+ * combinatorial objects.  The problem specific information should be mostly
+ * put into the refiner class, whose type must implement the refiner protocol,
+ * which is defined as follows.
  *
  *
  * Refiner protocol
@@ -18,37 +16,28 @@
  *
  * - The class for refiners needs to define the following types,
  *
- *   + `Coset` for the type of a coset in the isomorphism group.  + `Perm` for
- *   the type of a permutation.  + `Transv` for the type of transversal
- *   container used.  + `Structure` for the type of the combinatorial
- *   structure.  + `Container` for the type of the container for mapping from
- *   candidate forms to the permutation.
+ *   + `Coset` for the type of a coset in the isomorphism group.
+ *
+ *   + `Structure` for the type of the combinatorial structure.
  *
  * - It has a method named `refine` capable of returning an iterable of
- *   `Coset`s when it is given one coset.
+ *   `Coset`s when it is given one combinatorial object and a coset.
  *
- * - It has a method named `is_leaf` to decide if a given coset is a leaf.
+ * - It has a method named `is_leaf`, to be called with an combinatorial object
+ *   and a coset, to decide if a given coset is a leaf.
  *
  * - It has a method named `get_a_perm` to get a permutation from a coset.
  *
  * - The permutations need to be able to act on objects of the combinatorial
- *   structure and cosets by using the syntax `object >> permutation` or `coset
- *   >> permutation`.
- *
- * - The container should have method `emplace` to add a mapping from a
- *   candidate form to a permutation, in the form of a bare permutation and in
- *   the form of `perm1 | ~perm2`.
+ *   structure and cosets by methods `act(perm, obj)` or `left_mult(perm,
+ *   coset)` of the refiner.
  *
  * - The refiner need to have a method named `create_transv` capable of taking
- *   a coset $aH$ and a unique pointer to a transversal container to return a
- *   unique pointer to a transversal system of the group represented by the
- *   given transversal container in $a H a^{-1}$.  For leaf groups, a null
- *   pointer can be given.  Note that the created transversal container takes
- *   the ownership of the given transversal container.
- *
- * - The transversal containers need to satisfy the concept of a transversal
- *   container so that it works with the function \ref adapt_transv defined in
- *   the \ref perm.h module.
+ *   a coset $aH$ and another coset $bK$ to return a unique pointer to a
+ *   transversal container for $b K b^{-1}$ in $a H a^{-1}$.  The transversal
+ *   must satisfy the concept for a transversal container defined in `Perm.h`.
+ *   And it needs to accept permutations given by  `perm1 | ~perm2` by method
+ *   `insert`.
  *
  * All of these requirements are put in the `Refiner` concept, which is
  * automatically used on compilers supporting the C++ Concept-Lite technical
