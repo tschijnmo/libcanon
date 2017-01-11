@@ -49,12 +49,73 @@
 #define LIBCANON_CANON_H
 
 #include <memory>
+#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 
 #include <libcanon/utils.h>
 
 namespace libcanon {
+
+//
+// Meta functions for types in a Refiner
+//
+// All these meta functions are named with ending `_of` to deduce the
+// corresponding type of a given refiner.  Failure of reduction indicates
+// dissatisfaction of the refiner concept.
+//
+
+/** The coset type for a refiner.
+ *
+ * This meta function ensures that a type `Coset` is defined inside it.
+ */
+
+template <typename R> using Coset_of<R> = typename R::Coset;
+
+/** The structure type for a refiner.
+ *
+ * The type is obtained by just read from the `Structure` attribute from the
+ * refiner class.
+ */
+
+template <typename R> using Structure_of<R> = typename R::Structure;
+
+/** Permutation type for a refiner.
+ *
+ * This meta function also requires the presence of a `get_a_perm` method to
+ * return a permutation of a leaf coset when it is called with the coset.
+ */
+
+template <typename R>
+using Perm_of<R> = std::result_of_t<decltype (&R::get_a_perm)(Coset_of<R>)>;
+
+/** The result of acting a permutation on a structure.
+ *
+ * Sometimes the result of acting a permutation on a structure is an object of
+ * the same type by itself.  However, there are cases where this flexibility is
+ * very useful.  This meta function also ensures the presence of the `act`
+ * method.
+ */
+
+template <typename R>
+using Act_res_of
+    = std::result_of_t<decltype (&R::act)(Perm_of<R>, Structure_of<R>)>;
+
+/** The transversal type used by a refiner.
+ *
+ * This meta function also ensures that the `create_transv` function is present
+ * and returns a unique pointer to something.
+ */
+
+// clang-format off
+
+template <typename R>
+using Transv_of = internal::Ensure_unique_ptr_t<std::result_of_t<
+    decltype(&R::create_transv)(Coset_of<R>, Coset_of<R>)
+>>;
+
+// clang-format on
 
 //
 // The refiner protocol.
