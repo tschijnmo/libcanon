@@ -18,6 +18,7 @@
 #include <memory>
 #include <numeric>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include <libcanon/utils.h>
@@ -211,49 +212,6 @@ public:
         for (i = 0; i < size; ++i) {
             pre_images_[i] = expr >> i;
         }
-    }
-
-    /** Constructs a permutation from a chain of permutations.
-     *
-     * Here the result will be the multiplication of all permutation in the
-     * chain, which is given as an iterator over *pointers* to permutations.
-     *
-     * Compared with implementation based on expression templates, this
-     * specialized function is a lot more cache-friendly.
-     *
-     * When an empty iterator is given, the result will be the identity
-     * permutation.
-     */
-
-    template <typename Input_it>
-    Perm(size_t size, Input_it begin, Input_it end)
-        : images_()
-        , pre_images_()
-        , acc_(0)
-    {
-        Point_vec pts1(size);
-        Point_vec pts2(size);
-        std::iota(pts1.begin(), pts1.end(), 0);
-
-        // Src always points to the pre-image array.
-        Point_vec* src = &pts1;
-        Point_vec* dest = &pts2;
-
-        std::for_each(begin, end, [&](auto element) {
-            const Perm& perm{ *element };
-            // Invalid iterator given if error happens here.
-
-            acc_ = acc_ ^ perm.acc();
-
-            for (size_t i = 0; i < size; ++i) {
-                (*dest)[i] = (*src)[perm >> i];
-            }
-
-            std::swap(src, dest);
-        });
-
-        pre_images_ = std::move(*src);
-        set_images();
     }
 
     //
@@ -467,6 +425,62 @@ auto operator|(const Perm_expr<T1>& left, const Perm_expr<T2>& right)
  */
 
 using Simple_perm = Perm<char>;
+
+//
+// Simple algorithms for permutations.
+// -----------------------------------
+//
+
+/** Computes the product of a chain of permutations.
+ *
+ * Here the result will be the multiplication of all permutations in the chain,
+ * which is given as an iterator over *pointers* to permutations.  Null values
+ * are assumed to be *identity* permutations.
+ *
+ * Compared with implementation based on successive multiplication, this
+ * specialized function is a lot more cache-friendly.
+ *
+ * When an empty iterator is given, the result will be the identity
+ * permutation.
+ *
+ * The permutation type is assumed to be able to be constructed from a point
+ * vector for pre-images and an accompanied action.
+ */
+
+template <typename P, typename It> P chain(size_t size, It begin, It end)
+{
+    // Initialize the accompanied action, here we start from identity.
+    using Acc = std::remove_reference_t<decltype<std::declval<P>().acc()>>;
+    Acc acc(0);
+
+    // Two pre-image arrays are needed to preserve the values.
+    Point_vec pts1(size);
+    Point_vec pts2(size);
+    std::iota(pts1.begin(), pts1.end(), 0);
+
+    // Src always points to the current pre-image array.
+    Point_vec* src = &pts1;
+    Point_vec* dest = &pts2;
+
+    std::for_each(begin, end, [&](auto element) {
+        if (!element) {
+            // Identity permutation.
+            return;
+        }
+
+        const auto& perm = *element;
+
+        acc = acc ^ perm.acc();
+
+        for (size_t i = 0; i < size; ++i) {
+            (*dest)[i] = (*src)[perm >> i];
+        }
+
+        std::swap(src, dest);
+    });
+
+    return P(std::move(*src), acc);
+}
 
 //
 // Transversal adaptation
