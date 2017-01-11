@@ -120,7 +120,7 @@ public:
 
 template <typename A> class Perm : public Perm_expr<Perm<A>> {
 public:
-    /** Constructs a permutation from a preimage array.
+    /** Constructs a permutation from iterator for the preimage array.
      */
 
     template <typename Input_it>
@@ -132,6 +132,22 @@ public:
         // To avoid the ambiguity in vector constructor when the iterator type
         // is integral.
         std::copy(begin, end, std::back_inserter(pre_images_));
+        set_images();
+    }
+
+    /** Constructs a permutation directly from the preimage array.
+     *
+     * Anything that can be used for the construction of the pre-image array
+     * can be used and perfectly forwarded to the constructor for the pre-image
+     * array.
+     */
+
+    template <typename T>
+    Perm(T&& pre_images, A acc = 0)
+        : images_()
+        , pre_images_(std::forward<T>(pre_images))
+        , acc_(acc)
+    {
         set_images();
     }
 
