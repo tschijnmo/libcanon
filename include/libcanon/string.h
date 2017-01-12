@@ -13,6 +13,7 @@
 #define LIBCANON_STRING_H
 
 #include <algorithm>
+#include <cassert>
 #include <memory>
 #include <numeric>
 #include <type_traits>
@@ -29,10 +30,12 @@ namespace libcanon {
 /** Cosets for Sims transversal system.
  *
  * A left coset for one level of  Sims transversal system is basically a
- * pointer to a permutation with a reference to the next level of Sims
- * transversal.  Here we also have a pointer to the previous level of coset
- * that the current coset is in.  The product of all these permutations gives a
- * permutation in the actual coset.
+ * pointer to a transversal system with a pointer to the selected point to be
+ * moved to the target.  Here we also have a pointer to the previous level of
+ * coset that the current coset is in.  The product of all these permutations
+ * gives a permutation in the coset as in the whole group.  For graceful
+ * treatment of the whole group as a coset, a pointer to the next level of
+ * transversal is also included.
  */
 
 template <typename P> class Sims_coset {
@@ -45,21 +48,27 @@ public:
      */
 
     Sims_coset(const Sims_coset& prev, Point selected)
-        : prev{ *prev }
-        , curr{ prev->next }
-        , selected{ selected }
-        , perm{ curr->get_repr(selected) }
-        , next{ curr->next->get() }
+        : prev_(&prev)
+        , curr_(prev->next())
+        , selected_(selected)
+        , perm_(curr->get_repr(selected))
+        , next_(curr->next())
     {
+        // We either have a coset representative or we have the implicit
+        // identity.
+
+        assert(perm_ || selected_ == curr->target);
     }
 
-    /**
-     * Constructs a root coset for the group given as a Sims transversal.
+    /** Constructs a root coset for the group given as a Sims transversal.
      */
 
     Sims_coset(const Sims_transv<P>& group)
-        : curr{ nullptr }
-        , next{ *group }
+        : prev_(nullptr)
+        , curr_(nullptr)
+        , selected(0) // Not going to be used.
+        , perm_(nullptr)
+        , next_(&group)
     {
     }
 
@@ -69,39 +78,32 @@ public:
      * full construction of a permutation, use `get_a_perm`.
      */
 
-    friend Point operator>>(const Sims_coset* coset, Point point)
+    friend Point operator>>(const Sims_coset& coset, Point point)
     {
-        for (; coset->curr != nullptr; coset = coset->prev) {
-            if (coset->perm) {
-                point = *coset->perm >> point;
-            } // Else we assume we chose identity.
+        for (const Sims_coset* i = &coset; !i->is_root(); i = curr->prev_) {
+            if (i->perm_) {
+                point = *i->perm >> point;
+            } else {
+                // Else we assume we chose identity.
+                assert(i->selected() == i->curr_->target());
+            }
         }
+
         return point;
     }
 
-    /**
-     * Gets a permutation in the coset.
-     *
-     * Null pointer for identity permutation.
+    /** Gets a permutation in the coset.
      */
 
-    std::unique_ptr<P> get_a_perm() const
+    P get_a_perm() const
     {
-        std::unique_ptr<P> res;
-        std::unique_ptr<P> prod;
+        std::vector<const P*> perms{};
 
-        for (const Sims_coset* coset = this; coset->curr != nullptr;
-             coset = coset->prev) {
-            if (coset->perm) {
-                if (res) {
-                    prod = std::make_unique<P>(*coset->perm | *res);
-                    res.swap(prod);
-                } else {
-                    res = std::make_unique<P>(*coset->perm); // Copy.
-                }
-            }
+        for (const Sims_coset* i = this; !i->is_root(); i = coset->prev_) {
+            perms.push_back(i->perm_); // The permutation can be null.
         }
-        return std::move(res);
+
+        return chain(size(), perms.crbegin(), perms.crend());
     }
 
     /** Tests if two cosets are equal.
@@ -112,7 +114,8 @@ public:
 
     bool operator==(const Sims_coset& other)
     {
-        return this->selected == other.selected;
+        assert(curr_ == other.curr_);
+        return this->selected_ == other.selected_;
     }
 
     /** Computes the hash of the coset.
@@ -121,48 +124,77 @@ public:
      *  moved into the target as the hash.
      */
 
-    size_t hash() const { return selected; }
+    size_t hash() const { return selected_; }
 
     /** Gets the selected point to be put into the target.
      *
-     * Result for root coset is undefined.
+     * This method should *not* be called on root coset.
      */
 
-    Point get_selected() const { return selected; }
+    Point selected() const
+    {
+        assert(!is_root());
+        return selected_;
+    }
+
+    /** Gets the size of the permutation domain.
+     */
+
+    size_t size() const
+    {
+        // Root are guaranteed to have next, others are guaranteed to have
+        // current.
+        return is_root() ? next_->size() : curr_->size();
+    }
 
     /** Gets the previous coset.
      *
      * It can only be called on non-root coset.
      */
 
-    const Sims_coset& get_prev() const { return *prev; }
+    const Sims_coset* prev() const
+    {
+        assert(!is_root());
+        return prev_;
+    }
 
-    /** Gets the current transversal system.
-     *
-     * It can only be called on non-root coset.
+    /** Gets pointer to the next level of transversal system.
      */
 
-    const Sims_transv<P>& get_curr() const { return *curr; }
+    const Sims_transv<P>* next() const { return next_; }
 
-    /** Gets the next level of transversal system */
+    /** Decides if a coset is the full group.
+     */
 
-    const Sims_transv<P>* get_next() const { return next; }
+    bool is_root() const { return !curr_; }
 
 private:
-    /** Pointer to the previous level of coset, nullptr for first level. */
-    const Sims_coset* prev;
+    /** Pointer to the previous level of coset, nullptr for first level.
+     */
 
-    /** The current level of transversal. */
-    const Sims_transv<P>* curr;
+    const Sims_coset* prev_;
 
-    /** The label for the coset. */
-    Point selected;
+    /** The current level of transversal.
+     *
+     * It will be set to null for the root coset.
+     */
 
-    /** Reference to the permutation chosen by this level of coset. */
-    const P* perm;
+    const Sims_transv<P>* curr_;
 
-    /** Pointer to the next level of subgroup. */
-    const Sims_transv<P>* next;
+    /** The label for the coset.
+     */
+
+    Point selected_;
+
+    /** Reference to the permutation chosen by this level of coset.
+     */
+
+    const P* perm_;
+
+    /** Pointer to the next level of subgroup.
+     */
+
+    const Sims_transv<P>* next_;
 };
 
 /** Refiner for string canonicalization problem based on Sims transversal.
