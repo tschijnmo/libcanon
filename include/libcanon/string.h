@@ -1,7 +1,11 @@
 /** Canonicalization of strings.
  *
  * In this module, the generic canonicalization algorithm is applied to string
- * canonicalization problem.
+ * canonicalization problem.  Data types required for the generic
+ * canonicalization algorithm to work are defined.  And the hashing of some of
+ * them are injected into the `std` namespace for ease of use.  All these
+ * culminates in the \ref canon_string function, which canonicalizes any given
+ * string combinatorial object.
  *
  */
 
