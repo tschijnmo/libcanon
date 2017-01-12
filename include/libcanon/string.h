@@ -386,8 +386,8 @@ namespace std {
 
 /** Hasher for string combinatorial structures */
 
-template <typename S> struct hash<libcanon::String_structure<S>> {
-    size_t operator()(const libcanon::String_structure<S>& obj) const
+template <typename S> struct hash<libcanon::Sims_act_res<S>> {
+    size_t operator()(const libcanon::Sims_act_res<S>& obj) const
     {
         return obj.hash();
     }
