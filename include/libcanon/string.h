@@ -197,6 +197,23 @@ private:
     const Sims_transv<P>* next_;
 };
 
+// clang-format off
+
+/** The type for the alphabet of a string combinatorial structure.
+ *
+ * The type is set to the type obtained by indexing the structure by integral
+ * values.
+ *
+ * Note that this may lead the problems for cases like a boolean vector.
+ */
+
+template <typename S>
+using Alphabet_of<S> = std::remove_reference_t<std::result_of<
+    decltype(&S::operator[])(size_t)
+>>;
+
+// clang-format on
+
 /** Refiner for string canonicalization problem based on Sims transversal.
  *
  * For a problem, in addition to the type of permutation `P`, we also need the
