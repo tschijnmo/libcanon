@@ -214,6 +214,29 @@ using Alphabet_of<S> = std::remove_reference_t<std::result_of<
 
 // clang-format on
 
+/** The result of acting a permutation on a string combinatorial object.
+ *
+ * For convenience of implementation, here the result is set to a vector formed
+ * from the alphabet of the corresponding combinatorial structure.  Actual
+ * users can actually be isolated from this.
+ */
+
+template <typename S>
+class Sims_act_res : public std::vector<Alphabet_of<S>>,
+                     private std::hash<Alphabet_of<S>> {
+public:
+    size_t hash() const
+    {
+        size_t hash = 0;
+        for (const auto& i : *this) {
+            combine_hash(
+                hash, static_cast<std::hash<Alphabet_of<S>>&>(*this)(i));
+        }
+
+        return hash;
+    }
+};
+
 /** Refiner for string canonicalization problem based on Sims transversal.
  *
  * For a problem, in addition to the type of permutation `P`, we also need the
