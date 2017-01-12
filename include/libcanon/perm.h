@@ -505,7 +505,8 @@ concept bool Transv = requires () {
 #endif
 
 //
-// Utilities for the transversal adaptation.
+// Generic transversal algorithms
+// ------------------------------
 //
 
 namespace internal {
@@ -613,6 +614,42 @@ template <typename T> void adapt_trasv(T& input, T& output)
     // have nothing left now.
     assert(passed_perms.empty());
     return;
+}
+
+/** Minimize transversal chain.
+ *
+ * By this function, a transversal system can be minimized by removing
+ * transversals having the next subgroup as the only coset.  The input
+ * transversal system is given as a unique pointer, with the output returned as
+ * a unique pointer.  For transversal systems containing only the identity, a
+ * null pointer will be returned.
+ *
+ * Note that this function does not always make sense for all kinds of
+ * transversal systems.
+ */
+
+template <typename T> std::unique_ptr<T> min_transv(std::unique_ptr<T> transv)
+{
+    std::unique_ptr<T> min{};
+    T* curr_end = nullptr;
+
+    while (transv) {
+        auto next = transv.release_next();
+
+        if (begin(*transv) != end(*transv)) {
+            if (curr_end) {
+                curr_end->set_next(std::move(transv));
+                curr_end = curr_end->next();
+            } else {
+                min = std::move(transv);
+                curr_end = min.get();
+            }
+        }
+
+        transv = std::move(next);
+    } // End main loop.
+
+    return min;
 }
 
 } // End namespace libcanon.
