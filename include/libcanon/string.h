@@ -237,6 +237,15 @@ public:
     }
 };
 
+/** Container for the candidates
+ *
+ * Here we use a simple unordered map from the action result to permutation.
+ * The hashing for the action result are injected into the std namespace.
+ */
+
+template <typename S, typename P>
+using Sims_candidates = std::unordered_map<Sims_act_res<S>, P>;
+
 /** Refiner for string canonicalization problem based on Sims transversal.
  *
  * For a problem, in addition to the type of permutation `P`, we also need the
