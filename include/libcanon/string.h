@@ -14,6 +14,8 @@
 
 #include <algorithm>
 #include <cassert>
+#include <functional>
+#include <iterator>
 #include <memory>
 #include <numeric>
 #include <type_traits>
@@ -249,105 +251,124 @@ using Sims_candidates = std::unordered_map<Sims_act_res<S>, P>;
 /** Refiner for string canonicalization problem based on Sims transversal.
  *
  * For a problem, in addition to the type of permutation `P`, we also need the
- * type of the combinatorial structure `S` and the comparator for the alphabet
- * in the string `C`
- *
- * `S` needs to be indexable and able to be constructed from a size.  The
- * comparator needs to implement `equals` and `is_less` methods for comparing
- * the contents in the string.
+ * type of the combinatorial structure `S`, which needs to be indexable to give
+ * comparable and hashable alphabet.
  */
 
-template <typename S, typename P> class Sims_refiner {
+template <typename S, typename P> struct Sims_refiner {
 public:
     //
     // Types required by the refiner protocol.
     //
 
     using Coset = Sims_coset<P>;
-    using Perm = P;
-    using Transv = Sims_transv<P>;
     using Structure = S;
-    using Container = std::unordered_map<S, P>;
-
-    template <typename T>
-    Sims_refiner(size_t size)
-        : size{ size }
-    {
-    }
 
     //
     // Methods required by the refiner protocol
     //
 
-    /** Tests if a given coset is a leaf coset. */
-    bool is_leaf(const Coset& coset) const { return !coset.get_next(); }
+    /** Refines a non-leaf coset.
+     *
+     * Currently the refined cosets are all put into a vector eagerly.  It
+     * might be better done lazily.
+     */
 
-    /** Refines a non-leaf coset */
-    std::vector<Coset> refine(const Structure& obj, const Coset& coset) const
+    std::vector<Coset> refine(const S& obj, const Coset& coset) const
     {
-        std::vector<Coset> children{};
 
-        Point target = coset.get_next()->get_target();
         // Only valid for non-leaf cosets.
+        assert(coset.next());
+        const Sims_transv<P>& transv(*coset.next());
+        Point target = transv.target();
 
         // Find all points of minimum colour in the orbit.
-        auto min = obj(coset >> target);
-        children.emplace_back(coset, target);
+        std::vector<Point> points_w_min{};
 
-        for (const auto& perm : coset.get_curr()) {
+        // First we take the target itself as the min colour.
+        auto min = obj[coset >> target];
+        points_w_min.push_back(target);
+
+        // Then we loop over other points in the orbit and update.
+        for (const auto& perm : transv) {
             Point src = perm >> target;
             Point orig = coset >> src;
-            auto colour = obj(orig);
+            auto colour = obj[orig];
+
             if (colour == min) {
-                children.emplace_back(coset, src);
+                points_w_min.push_back(src);
             } else if (colour < min) {
                 min = colour;
-                children.clear();
-                children.emplace_back(coset, src);
+                points_w_min.clear();
+                points_w_min.push_back(src);
             }
             // Do nothing when a greater point is found.
         }
 
+        std::vector<Coset> children{}; // Named return value.
+        std::transform(points_w_min.cbegin(), points_w_min.cend(),
+            std::back_inserter(children),
+            [&](auto src) { return Sims_coset(coset, src); });
+
         return children;
     }
 
-    /** Gets a permutation in a leaf coset */
-    Perm get_a_perm(const Coset& coset) const
+    /** Tests if a given coset is a leaf coset.
+     */
+
+    bool is_leaf(const S& obj, const Coset& coset) const
     {
-        std::unique_ptr<P> perm = coset.get_a_perm();
-        if (perm) {
-            return std::move(*perm);
-        } else {
-            return Perm{ size }; // Create the identity permutation.
-        }
+        return !coset.next();
     }
 
-    /** Acts a given permutation to a combinatorial object. */
-    Structure act(const Perm& perm, const Structure& obj) const
+    /** Gets a permutation in a leaf coset.
+     *
+     * This should only be called on leaf cosets.
+     */
+
+    Perm get_a_perm(const Coset& coset) const
     {
-        Structure result(size);
+        assert(coset.is_leaf());
+        return coset.get_a_perm();
+    }
+
+    /** Acts a given permutation to a combinatorial object.
+     *
+     * The result is an instance of the action result, not of the same type as
+     * the given structure.
+     */
+
+    Sims_act_res<S> act(const Perm& perm, const S& obj) const
+    {
+        size_t size = perm.size();
+        Sims_act_res<S> result();
+        result.reserve(size);
 
         for (size_t i = 0; i < size; ++i) {
-            result[perm << i] = obj[i];
+            result.push_back(obj[perm >> i]);
         }
 
         return result;
     }
 
-    /** Left multiplies a coset by a permutation */
+    /** Left multiplies a coset by a permutation.
+     */
+
     Coset left_mult(const Perm& perm, const Coset& coset) const
     {
-        return { coset.get_prev(), perm >> coset.get_selected() };
+        return { *coset.prev(), perm >> coset.selected() };
     }
+
+    /** Creates a transversal system.
+     */
 
     auto get_transv(const Coset& upper, const Coset& lower) const
     {
-        return std::move(
-            std::make_unique<Transv>(size, lower >> lower.get_target()));
-    }
+        size_t size = upper.size();
+        assert(lower.size() == size);
 
-private:
-    size_t size;
+        return std::make_unique<Sims_transv<P>>(size, lower >> lower.target());
+    }
 };
 
 /** Canonicalize the given string.
