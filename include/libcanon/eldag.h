@@ -10,6 +10,7 @@
 #define LIBCANON_ELDAG_H
 
 #include <algorithm>
+#include <cassert>
 #include <iterator>
 #include <memory>
 #include <numeric>
@@ -18,10 +19,10 @@
 #include <utility>
 #include <vector>
 
-#include <libcanon/perm.h>
-#include <libcanon/string.h>
-#include <libcanon/sims.h>
 #include <libcanon/partition.h>
+#include <libcanon/perm.h>
+#include <libcanon/sims.h>
+#include <libcanon/string.h>
 #include <libcanon/utils.h>
 
 namespace libcanon {
@@ -55,22 +56,35 @@ struct Eldag {
 
     std::vector<size_t> ia;
 
-    /** Gets the number of nodes in the Eldag. */
+    /** Gets the number of nodes in the Eldag.
+     */
 
     size_t size() const { return ia.size() - 1; }
 
+    /** Gets the number of edges in the Eldag.
+     */
+
+    size_t n_edges() const { return edges.size(); }
+
+    /** Gets the number of valences of a node.
+     */
+
+    size_t n_valences(Point node) const
+    {
+        assert(node >= 0 && node < size());
+        return ia[node + 1] - ia[node];
+    }
+
     /** Creates an Eldag of a given size.
      *
-     * Note that here the vectors are only reserved space.  The actual sizes
-     * are still empty.
+     * Note that here the vectors are only set to the correct size without any
+     * valid content.
      */
 
     Eldag(size_t n_nodes, size_t n_edges)
-        : edges{}
-        , ia{}
+        : edges(n_edges)
+        , ia(n_nodes + 1)
     {
-        ia.reserve(n_nodes + 1);
-        edges.reserve(n_edges);
     }
 
     /** Evaluates the hash of an Eldag.
