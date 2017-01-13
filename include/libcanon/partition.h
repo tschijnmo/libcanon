@@ -196,7 +196,7 @@ public:
     Point get_first() const
     {
         assert(size() > 0);
-        return perm_[0];
+        return perm_.front();
     }
 
     /** Gets a point in the next cell of the given cell.
@@ -210,6 +210,36 @@ public:
         auto end_idx = ends_[point];
         if (end_idx < size()) {
             return perm_[end_idx];
+        } else {
+            return size();
+        }
+    }
+
+    /** Gets a point in the last cell of the partition.
+     *
+     * In the same vein as corresponding method for the first cell, this method
+     * also fails on an empty partition.
+     */
+
+    Point get_last() const
+    {
+        assert(size() > 0);
+        return perm_.back();
+    }
+
+    /** Gets a point in the cell before.
+     *
+     * In the same vein as the method for the next cell, here also size is
+     * returned when we have passed the first cell.  This might look slightly
+     * counter-intuitive.
+     */
+
+    Point prev_cell(Point point) const
+    {
+        auto begin_idx = begins_[point];
+
+        if (begin_idx > 0) {
+            return perm_[begin_idx - 1];
         } else {
             return size();
         }
@@ -245,9 +275,10 @@ public:
         /** Constructs a cell iterator.
          */
 
-        Cell_it(const Partition& partition, Point curr)
+        Cell_it(const Partition& partition, Point curr, bool if_rev = false)
             : partition_(&partition)
             , curr_(curr)
+            , if_rev_(if_rev)
         {
         }
 
@@ -256,7 +287,11 @@ public:
 
         Cell_it& operator++()
         {
-            curr_ = partition_->next_cell(curr_);
+            if (if_rev) {
+                curr_ = partition_->prev_cell(curr_);
+            } else {
+                curr_ = partition_->next_cell(curr_);
+            }
 
             return *this;
         }
@@ -267,11 +302,21 @@ public:
         Point operator*() const { return curr_; }
 
         /** Compares two iterators for equality.
+         *
+         * Note that this implementation can only be used for the comparison of
+         * iterators for the same partition in the same direction.
          */
 
         bool operator==(const Cell_it& other)
         {
-            assert(this.partition_ == other.partition_);
+            assert(this->partition_ == other.partition_);
+            assert(this->if_rev_ == other.if_rev_);
+
+            // Actually we should compare the colour.  But here for performance
+            // reasons, we directly compare the point.  Iterators on the same
+            // cell should be at exactly the same point if the iterators are
+            // created and incremented by using only the public interface.
+
             return this->curr_ == other.curr_;
         }
 
@@ -290,11 +335,48 @@ public:
          */
 
         const Partition* partition_;
+
+        /** If this iterator goes in the reverse direction.
+         */
+
+        bool if_rev_;
     };
 
-    Cell_it begin() const { return { *this, get_first() }; }
+    /** Get the begin iterator for looping cells forward.
+     */
 
-    Cell_it end() const { return { *this, size() }; }
+    Cell_it begin() const
+    {
+        assert(size() > 0);
+        return { *this, get_first() };
+    }
+
+    /** Gets the end sentinel for looping cells forward.
+     */
+
+    Cell_it end() const
+    {
+        assert(size() > 0);
+        return { *this, size() };
+    }
+
+    /** Gets the begin iterator for looping cells backward.
+     */
+
+    Cell_it rbegin() const
+    {
+        assert(size() > 0);
+        return { *this, get_last(), true };
+    }
+
+    /** Gets the end iterator for looping cells backward.
+     */
+
+    Cell_it rend() const
+    {
+        assert(size() > 0);
+        return { *this, size(), true };
+    }
 
 private:
     /** Permutation of the given points
