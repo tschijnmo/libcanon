@@ -374,27 +374,32 @@ public:
 /** Canonicalize the given string.
  *
  * This is the main driver function for string canonicalization problem.  Note
- * that in addition to the other constrains, the combinatorial object needs to
- * satisfy the concept required in the template \ref String_structure.
+ * that the canonical form itself is not returned.  But rather, we return a
+ * permutation bringing the combinatorial object to the canonical form and the
+ * automorphism of the *canonicalized* object.  This can be understood as the
+ * left coset of permutation canonicalizing the given object.
+ *
+ * The transversal system for the automorphism group is minimized.  Null
+ * pointers indicates the absence of any symmetry.
  */
 
 template <typename S, typename P>
-std::pair<S, std::unique_ptr<Sims_transv<P>>> canon_string(
+std::pair<P, std::unique_ptr<Sims_transv<P>>> canon_string(
     const S& input, const Sims_transv<P>& group)
 {
     using Refiner = Sims_refiner<S, P>;
-    Refiner refiner{ input.size() };
+    Refiner refiner{};
     Sims_coset<P> whole_group(group);
-    typename Refiner::Container container{};
+    Sims_candidates<S, P> candidates{};
 
-    auto aut = add_all_candidates(refiner, input, whole_group, container);
+    auto aut = add_all_candidates(refiner, input, whole_group, candidates);
 
     const auto& canon_form
         = std::min_element(container.begin(), container.end(),
             [](const auto& a, const auto& b) { return a.first < b.first; });
 
     aut->conj(canon_form.second);
-    return { std::move(canon_form.first), std::move(aut) };
+    return { std::move(canon_form.second), min_transv(std::move(aut)) };
 }
 
 } // End namespace libcanon
