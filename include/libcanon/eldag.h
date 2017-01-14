@@ -572,9 +572,23 @@ private:
     {
         Orbits res{};
 
-        // TODO: maybe add real implementation here.
-        std::transform(symms.begin(), symms.end(), std::back_inserter(res),
-            [&](const auto aut) { return aut.get_orbits(); });
+        for (size_t node = 0; node < eldag.size(); ++node) {
+            size_t n_valences = eldag.n_valences(node);
+
+            Orbit orbit(n_valences);
+            std::iota(orbit.begin(), orbit.end(), 0);
+
+            for (const Sims_transv<P>* transv = symms[node]; transv != nullptr;
+                 transv = transv->get_next()) {
+                Point target = transv->target();
+                for (const auto& perm : *transv) {
+                    orbit[perm >> target] = orbit[target];
+                }
+            }
+
+            res.push_back(std::move(orbit));
+        }
+
         return res;
     }
 
