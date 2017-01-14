@@ -187,452 +187,497 @@ namespace internal {
 
     template <typename P> using Borrowed_perms = std::vector<const P*>;
 
-    /**
-     * Data type for a coset in the canonicalization of an Eldag.
+} // End namespace internal
+
+/** Data type for a coset in the canonicalization of an Eldag.
+ *
+ * Basically, it has a global partition of the nodes, the symmetries and
+ * applied permutations for each of the nodes, which can be from the parent
+ * coset or from the refined permutation and symmetries owned by itself.
+ */
+
+template <typename P> class Eldag_coset {
+public:
+    /** Constructs a coset based on initial partition and symmetries.
+     *
+     * This is useful for the creation of root coset.
+     *
+     * The templating here is just for perfect forwarding.  The initial
+     * partition is assumed to be a Partition object.
      */
 
-    template <typename A> class Eldag_coset {
-    public:
-        /** Constructs a coset based on initial partition and symmetries.
+    template <typename T>
+    Eldag_coset(T&& init_part, const Node_symms<P>& init_symms)
+        : partition_(std::forward<T>(init_part))
+        , symms_(init_symms)
+        , perms_(init_part.size(), nullptr)
+        , refined_symms_()
+        , refined_perms_()
+        , individualized_(init_part.size())
+    {
+        assert(init_part.size() == init_symms.size());
+    }
+
+    /** Constructs a coset by individualizing a point.
+     *
+     * This is useful for the individualization step.  Note that this
+     * construction is better used on cosets after refinement.
+     */
+
+    Eldag_coset(const Eldag_coset& base, Point point)
+        : individualized_(point)
+        , partition_(base.partition_, point)
+        , symms_(base.symms_)
+        , perms_(base.perms_)
+        , refined_perms_()
+        , refined_symms_()
+    {
+    }
+
+    /** Constructs a coset by acting a permutation.
+     *
+     * This is useful for the pruning of the refinement tree.  Note that the
+     * created coset is not actually fully valid one.  Just the individualized
+     * point is correctly set for the sake of removing the actual coset in a
+     * hash set/map.
+     */
+
+    Eldag_coset(const Eldag_coset& base, const Simple_perm& perm)
+        : individualized_(perm >> base.individualized())
+        , partition_()
+        , perms_()
+        , symms_()
+        , refined_perms_()
+        , refined_symms_()
+    {
+    }
+
+    /** Individualizes the refined partition.
+     *
+     * This method can be called after the testing of leaf, where the partition
+     * is going to be refined.
+     *
+     * Currently we eagerly put the result in a vector, it should better be
+     * done lazily.
+     */
+
+    std::vector<Eldag_coset> individualize_first_nonsingleton()
+    {
+        auto cell = std::find_if(partition_.begin(), partition_.end(),
+            [&](auto cell) { return partition_.get_cell_size(cell) > 1; });
+
+        // When used correctly, we should find a non-singleton cell here.
+        assert(cell != partition_.end());
+
+        std::vector<Eldag_coset> res;
+        std::transform(partition.cell_begin(*cell), partition.cell_end(*cell),
+            std::back_inserter(res),
+            [&](auto point) { return Eldag_coset(*this, point); });
+
+        return res;
+    }
+
+    /** Tests if the result is a leaf.
+     *
+     * In addition to testing, most importantly, the Weisfeiler-Lehman
+     * refinement will be performed here.
+     */
+
+    bool is_leaf()
+    {
+        refine(); // Core work.
+        return partition_.is_discrete();
+    }
+
+    /** Gets the point individualized during its construction.
+     */
+
+    Point individualized() const { return individualized_; }
+
+    /** Gets the size of the graph.
+     */
+
+    size_t size() const { return partition_.size(); }
+
+    /** Compares two cosets for equality.
+     *
+     * Here only the point that is individualized is compared.  So it is
+     * actually only applicable to peers.
+     */
+
+    bool operator==(const Eldag_coset& other) const
+    {
+        return individualized() == other.individualized();
+    }
+
+    /** Evaluates the hash of a coset.
+     *
+     * Note that only the individualized point is used.  So it is only
+     * useful for retrieval amongst it peers.
+     */
+
+    size_t hash() const { return individualized(); }
+
+private:
+    //
+    // Core refinement facilities
+    //
+
+    // Data types for node distinguishing.
+
+    /** The orbit label of valences of a node.
+     *
+     * Values of this type can be used to map a valence of a node to its orbit
+     * label.
+     */
+
+    using Orbit = std::vector<Point>;
+
+    /** The orbits of nodes in an Eldag.
+     *
+     * The orbit vector for any node should be able to be queried by indexing
+     * it.
+     */
+
+    using Orbits = std::vector<Orbit>;
+
+    /** An edge in detail.
+     *
+     * It is a sorted list of all the orbit labels of all the edges from
+     * the parent node to the children.
+     */
+
+    using Detailed_edge = std::vector<size_t>;
+
+    /** Detailed description of the in/out edges between a node and a cell.
+     *
+     * The result should be sorted for set semantics.  It is implemented as a
+     * struct here to have better control over the comparison order among them.
+     * Since the values are mostly only used for lexicographical comparison,
+     * without need to be queried for a specific edge, here it is based on
+     * vector rather than multi-set for better cache friendliness with the same
+     * complexity.
+     */
+
+    class Detailed_edges : public std::vector<Detailed_edge> {
+
+        /** Compares two for order.
          *
-         * This is useful for the creation of root coset.
+         * Here larger number of connections is considered smaller.  In
+         * this way, when we sweep the cells from beginning to end, nodes
+         * with more connection with nodes of earlier colour will be put
+         * earlier.
          */
 
-        Eldag_coset(const Partition& init_part, Symms<A> init_symms)
-            : partition{ init_part }
-            , symms(init_symms)
-            , perms(init_part.size(), nullptr)
-            , refined_symms()
-            , refined_perms()
+        bool operator<(const Detailed_edges& other) const
         {
+            return this->size() > other.size() || *this < other;
         }
+    };
 
-        /** Constructs a coset by acting a permutation.
-         *
-         * This is useful for the pruning of the refinement tree.  Note that
-         * the created coset is not actually fully valid one.  Just the
-         * individualized point is correctly set for the sake of removing the
-         * actual coset.
-         */
+    /** Detailed description of the connection between a node and a cell.
+     *
+     * Here we have information about both the in and the out edges.  Default
+     * lexicographical order will be used.
+     *
+     * Normally for Eldag, either the in edges or the out edges are just empty.
+     */
 
-        Eldag_coset(const Eldag_coset& base, const Simple_perm& perm)
-            : individualized{ perm >> base.get_individualized() }
-            , partition()
-            , perms()
-            , symms()
-            , refined_perms()
-            , refined_symms()
-        {
-        }
+    using Conn = std::pair<Detailed_edges, Detailed_edges>;
 
-        /** Constructs a coset by individualizing a point.
-         *
-         * This is useful for the individualization step.  Note that this
-         * construction is better used on cosets after refinement.
-         */
+    /** The connection information of all nodes.
+     *
+     * This vector is designed to be directly indexed by node labels for the
+     * connection description.  Note that normally only the entries for nodes
+     * in the same cell are comparable.
+     */
 
-        Eldag_coset(const Eldag_coset& base, Point point)
-            : individualized(point)
-            , partition(base.partition, point)
-            , symms(base.symms)
-            , perms(base.perms)
-            , refined_perms()
-            , refined_symms()
-        {
-        }
+    using Conns = std::vector<Conn>;
 
-        /** Individualizes the refined partition.
-         *
-         * This method can be called after the testing of leaf, where the
-         * partition is going to be refined.
-         */
+    // Driver function.
 
-        std::vector<Eldag_coset> individualize_first_nonsingleton()
-        {
-            auto cell = std::find_if(partition.begin(), partition.end(),
-                [&](auto cell) { return partition.get_cell_size(cell) > 1; });
+    /** Refines the global partition and local symmetries.
+     *
+     * Most of the actual work of the canonicalization of Eldag actually
+     * comes here.
+     */
 
-            // When used correctly, we should find a non-singleton cell here.
+    void refine(const Eldag& eldag)
+    {
+        // Refine until fixed point.
 
-            std::vector<Eldag_coset> res;
-            std::transform(partition.cell_begin(*cell),
-                partition.cell_end(*cell), std::back_inserter(res),
-                [&](auto point) { return Eldag_coset(*this, point); });
+        while (true) {
 
-            return res;
-        }
+            // First refine the automorphism at each node and form the orbits.
+            refine_nodes(eldag);
+            Orbits orbits = form_orbits(eldag);
 
-        /** Tests if the result is a leaf.
-         *
-         * In addition to testing, most importantly, the Weisfeiler-Lehman
-         * refinement will be performed here.
-         */
+            //
+            // Unary split based on orbits.
+            //
 
-        bool is_leaf()
-        {
-            refine();
-            return partition.is_discrete();
-        }
+            bool split = false;
+            // Back up the current partition for unary split.
+            std::vector<size_t> curr_partition(
+                partition_.begin(), partition_.end());
 
-        /** Gets the point individualized during its construction.
-         */
-
-        Point get_individualized() const { return individualized; }
-
-        /** Gets the size of the graph.
-         */
-
-        size_t size() const { return partition.size(); }
-
-        /** Compares two cosets for equality.
-         *
-         * Here only the point that is individualized is compared.  So it is
-         * actually only applicable to peers.
-         */
-
-        bool operator==(const Eldag_coset& other) const
-        {
-            return get_individualized() == other.get_individualized();
-        }
-
-        /** Evaluates the hash of a coset.
-         *
-         * Note that only the individualized point is used.  So it is only
-         * useful for retrieval amongst it peers.
-         */
-
-        size_t hash() const { return get_individualized(); }
-
-    private:
-        /** The orbit label of valences of a node.
-         */
-
-        using Orbit = std::vector<Point>;
-
-        /** An edge in detail.
-         *
-         * It is a sorted list of all the orbit labels of all the edges from
-         * the parent node to the children.
-         */
-
-        using Detailed_edge = std::vector<size_t>;
-
-        /** Detailed description of the in/out edges between a node and a cell.
-         *
-         * The result should be sorted for set semantics.  It is implemented as
-         * a struct here to have better control over the comparison order among
-         * them.
-         */
-
-        class Detailed_edges : public std::vector<Detailed_edge> {
-
-            /** Compares two for order.
-             *
-             * Here larger number of connections is considered smaller.  In
-             * this way, when we sweep the cells from beginning to end, nodes
-             * with more connection with nodes of earlier colour will be put
-             * earlier.
-             */
-
-            bool operator<(const Detailed_edges& other) const
-            {
-                return this->size() < other.size() || *this < other;
+            for (auto i : curr_partition) {
+                split |= partition_.split_by_key(i,
+                    [&](auto point) -> const Orbit& { return orbits[point]; });
             }
-        };
+            if (split) {
+                // Binary split is expensive.  Refine as much as possible
+                // before carrying it out.
+                continue;
+            }
 
-        /** Detailed description of the connection between a node and a cell.
-         *
-         * Here we have information about both the in and the out edges.
-         * Default lexicographical order will be used.
-         *
-         * Normally for Eldag, either the in edges or the out edges are empty.
-         */
+            // Now all the nodes in the same cell must have identical orbit
+            // labelling.  So that their comparison by connection labels start
+            // to make sense.
 
-        using Conns = std::pair<Detailed_edges, Detailed_edges>;
+            //
+            // Binary split.
+            //
 
-        /** Refines the currently holding partition and symmetry.
-         *
-         * Most of the actual work of the canonicalization of Eldag actually
-         * comes here.
-         */
+            split = false;
+            Conns conns(size());
 
-        void refine(const Eldag& eldag)
-        {
-            // Refine until fixed point.
+            // Here for each loop, we always take advantage of the latest
+            // refine due to the special semantics of looping over cells in a
+            // partition.
 
-            while (true) {
-
-                // First refine the automorphism at each node.
-                refine_nodes(eldag);
-
-                //
-                // Unary split.
-                //
-
-                auto orbits = form_orbits();
-                bool split = false;
-                // Back up the current partition for unary split.
-                std::vector<size_t> curr_partition(
-                    partition.begin(), partition.end());
-
-                for (auto i : curr_partition) {
-                    split |= partition.split_by_key(
-                        i, [&](auto point) -> const Orbit& {
-                            return orbits[point];
-                        });
-                }
-                if (split) {
-                    // Binary split is expansive.  Refine as much as possible
-                    // before carrying it out.
-                    continue;
-                }
-
-                //
-                // Binary split.
-                //
-
-                split = false;
-                std::vector<Conns> conns(partition.size());
-
-                // Here for each loop, we always take advantage of the latest
-                // refine due to the special semantics of looping over cells in
-                // a partition.
-
-                for (auto splittee : partition) {
+            std::for_each(
+                partition_.rbegin(), partition_.rend(), [&](auto splittee) {
                     for (auto splitter : partition) {
 
                         update_conns4cell(
                             conns, eldag, orbits, splittee, splitter);
 
                         split |= partition.split_by_key(
-                            splittee, [&](auto point) -> const Conns& {
+                            splittee, [&](auto point) -> const Conn& {
                                 return conns[point];
                             });
                     }
-                }
-
-                if (split) {
-                    continue;
-                } else {
-                    // Now we reached a fixed point.
-                    break;
-                }
-            };
-        }
-
-        /** The class representing the valences of a node.
-         *
-         * This class is designed to be directly interoperable with the string
-         * canonicalization facilities.
-         */
-
-        class Valence {
-            Valence(const Eldag& eldag, const Partition& partition, Point node,
-                const Perm<A>& perm)
-                : eldag{ eldag }
-                , partition{ partition }
-                , node{ node }
-                , perm{ perm }
-            {
-            }
-
-            /** Gets the colour of the node connected to a given slot.
-             */
-
-            Point operator[](size_t slot) const
-            {
-                size_t offset = perm >> slot;
-                return partition.get_colour(
-                    eldag.edges[eldag.ia[node + offset]]);
-            }
-
-        private:
-            const Eldag& eldag;
-            const Partition& partition;
-            Point node;
-            const Perm<A>& perm;
-        };
-
-        /** Refines the automorphism of all nodes.
-         *
-         * In this function, the permutations and symmetries for each node will
-         * be refined as much as possible based on the current partition of the
-         * nodes.
-         */
-
-        void refine_nodes(const Eldag& eldag)
-        {
-            // Refinement for nodes are independent.
-            for (size_t i = 0; i < partition.size(); ++i) {
-
-                auto curr_symm = symms[i];
-                if (!curr_symm) {
-                    // Nodes without symmetry.
-                    continue;
-                }
-
-                Valence valence{ eldag, i, perms[i] };
-
-                auto canon_res = canon_string(valence, *curr_symm);
-
-                refined_perms[i]
-                    = std::make_unique<Perm<A>>(std::move(canon_res.first));
-                refined_symms[i] = std::move(canon_res.second);
-                perms[i] = refined_perms[i].get();
-                symms[i] = refined_symms[i].get();
-            }
-        }
-
-        /** Forms the orbit label array for all nodes.
-         */
-
-        std::vector<Orbit> form_orbits() const
-        {
-            std::vector<Orbit> res{};
-
-            std::transform(symms.begin(), symms.end(), std::back_inserter(res),
-                [&](const auto aut) { return aut.get_orbits(); });
-            return res;
-        }
-
-        /** Updates the connection information.
-         */
-
-        void update_conns4cell(std::vector<Conns>& conns, const Eldag& eldag,
-            const std::vector<Orbit>& orbits, Point splittee, Point splitter)
-        {
-            // Short-cut singleton partitions.  They will be automatically
-            // short-cut in split by key function any way.
-            if (partition.get_cell_size(splittee) < 2)
-                return;
-
-            std::for_each(partition.cell_begin(splittee),
-                partition.cell_end(splittee), [&](Point base) {
-                    Detailed_edges& ins = conns[base].first;
-                    Detailed_edges& outs = conns[base].second;
-
-                    ins.clear();
-                    outs.clear();
-
-                    std::for_each(partition.cell_begin(splitter),
-                        partition.cell_end(splitter), [&](Point curr) {
-                            // Add connection with the current point.
-                            add_detailed_edges(ins, eldag, orbits, curr, base);
-                            add_detailed_edges(outs, eldag, orbits, base, curr);
-                        });
-
-                    std::sort(ins.begin(), ins.end());
-                    std::sort(outs.begin(), outs.end());
                 });
-        }
 
-        /** Adds detailed edge from a point to another if there is any.
-         *
-         * Empty connection will not be added.
-         */
-
-        void add_detailed_edges(Detailed_edges& dest, const Eldag& eldag,
-            const std::vector<Orbit>& orbits, Point from, Point to)
-        {
-            Detailed_edge edge{};
-            for (size_t i = eldag.ia[from]; i < eldag.ia[from + 1]; ++i) {
-                if (eldag.edges[i] == to) {
-                    Point index = perms[from] ? *perms[from] << i : i;
-                    edge.push_back(orbits[from][index]);
-                }
+            if (split) {
+                continue;
+            } else {
+                // Now we reached a fixed point.
+                break;
             }
-            if (edge.size() == 0)
-                return;
-            std::sort(edge.begin(), edge.end());
-            dest.push_back(std::move(edge));
+        }; // End main loop.
+    }
 
-            return;
-        }
+    // Local refinement of the symmetries.
 
-        //
-        // Data fields
-        //
-
-        /** The partition of graph nodes.
-         *
-         * It can be coarse initially, and then refined.
-         */
-
-        Partition partition;
-
-        /** The current permutations applied to the nodes.
-         */
-
-        Borrowed_perms<A> perms;
-
-        /** The current symmetries for each of the nodes.
-         */
-
-        Symms<A> symms;
-
-        /** The permutation on each node after refinement.
-         */
-
-        Perms<A> refined_perms;
-
-        /** Refined symmetries for each node.
-         */
-
-        Owned_symms<A> refined_symms;
-
-        /**
-         * The point that is individualized in the construction of this coset.
-         */
-
-        Point individualized;
-    };
-
-    /** Data type for a permutation on an Eldag.
+    /** The class representing the valences of a node.
      *
-     * Inside it, we have not only the global permutation of the nodes, but the
-     * permutation on valences of each nodes as well.
-     *
-     * Note that the permutation stored in the graph automorphism are not of
-     * this type, but rather simple permutations of the nodes.  This is
-     * achieved by delegate to proxy types for the expression `g | ~h`.
+     * This class is designed to be directly interoperable with the string
+     * canonicalization facilities.
      */
 
-    template <typename A> struct Eldag_perm {
-
-        /** The permutations on each of the nodes. */
-
-        Perms<A> perms;
-
-        /** The global partition of the nodes.
-         *
-         * It should be a singleton partition already.
-         */
-
-        Partition partition;
-
-        /** The class for the inversion of an Eldag permutation. */
-
-        struct Inv_eldag_perm {
-            const Eldag_perm& operand;
-        };
-
-        /** Inverses a permutation.
-         *
-         * No actual inversion is done.  Just a proxy is returned.
-         */
-
-        Inv_eldag_perm operator~() const { return { *this }; }
-
-        /** Forms an automorphism.
-         *
-         * This function will be called by the generic canonicalization
-         * function by the evaluation of the expression `p | ~q`.
-         */
-
-        Simple_perm operator|(const Inv_eldag_perm& inv)
+    class Valence {
+        Valence(const Eldag& eldag, const Partition& partition, Point node,
+            const P* perm)
+            : eldag_(&eldag)
+            , partition_(&partition)
+            , node_(node)
+            , perm_(perm)
         {
-            size_t size = partition.size();
-            std::vector<Point> pre_imgs(size);
+            assert(eldag.size() == partition.size());
+            assert(0 <= node && node < partition.size());
+        }
+
+        /** Gets the colour of the node connected to a given slot.
+         */
+
+        Point operator[](size_t slot) const
+        {
+            size_t offset = slot;
+            if (perm_) {
+                offset = *perm_ >> slot;
+            }
+
+            auto base_idx = eldag_.ia[node_];
+            assert(offset >= 0 && offset < eldag_.n_valences(node_));
+
+            return partition_.get_colour(eldag_->edges[base_idx + offset]);
+        }
+
+    private:
+        /** The Eldag that the valence is for.
+         */
+
+        const Eldag* eldag_;
+
+        /** The current partition of the nodes in the Eldag.
+         */
+
+        const Partition* partition_;
+
+        /** The node label for this.
+         */
+
+        Point node_;
+
+        /** The current permutation of the node.
+         */
+
+        const P* perm_;
+    };
+
+    /** Refines the automorphism of all nodes.
+     *
+     * In this function, the permutations and symmetries for each node will be
+     * refined as much as possible based on the current partition of the nodes.
+     */
+
+    void refine_nodes(const Eldag& eldag)
+    {
+        // Refinement for nodes are independent.
+        for (size_t i = 0; i < size(); ++i) {
+
+            auto curr_symm = symms[i];
+            if (!curr_symm) {
+                // Nodes without symmetry, without need for *further*
+                // refinement.
+                continue;
+            }
+
+            Valence valence(eldag, partition_, i, perms_[i]);
+
+            auto canon_res = canon_string(valence, *curr_symm);
+
+            if (!perms_[i]) {
+                // When nothing has ever been applied to the node.
+
+                refined_perms_[i]
+                    = std::make_unique<P>(std::move(canon_res.first));
+            } else {
+                // Just to be safe about the order of evaluation.
+                auto new_perm
+                    = std::make_unique<P>(*perms_[i] | canon_res.first);
+                refined_perms_[i] = std::move(new_perm);
+            }
+            refined_symms[i] = std::move(canon_res.second);
+            perms[i] = refined_perms[i].get();
+            symms[i] = refined_symms[i].get();
+        }
+    }
+
+    /** Forms the orbit label array for all nodes.
+     */
+
+    Orbits form_orbits(const Eldag& eldag) const
+    {
+        Orbits res{};
+
+        // TODO: maybe add real implementation here.
+        std::transform(symms.begin(), symms.end(), std::back_inserter(res),
+            [&](const auto aut) { return aut.get_orbits(); });
+        return res;
+    }
+
+    // Binary refinements.
+
+    /** Updates the connection information.
+     */
+
+    void update_conns4cell(Conns& conns, const Eldag& eldag,
+        const Orbits& orbits, Point splittee, Point splitter)
+    {
+        // Short-cut singleton partitions.  They will be automatically
+        // short-cut in split by key function any way.
+        if (partition.get_cell_size(splittee) < 2)
+            return;
+
+        std::for_each(partition.cell_begin(splittee),
+            partition.cell_end(splittee), [&](Point base) {
+                Detailed_edges& ins = conns[base].first;
+                Detailed_edges& outs = conns[base].second;
+
+                ins.clear();
+                outs.clear();
+
+                std::for_each(partition.cell_begin(splitter),
+                    partition.cell_end(splitter), [&](Point curr) {
+                        // Add connection with the current point.
+                        add_detailed_edges(ins, eldag, orbits, curr, base);
+                        add_detailed_edges(outs, eldag, orbits, base, curr);
+                    });
+
+                std::sort(ins.begin(), ins.end());
+                std::sort(outs.begin(), outs.end());
+            });
+    }
+
+    /** Adds detailed edge from a point to another if there is any.
+     *
+     * Empty connection will not be added.
+     */
+
+    void add_detailed_edges(Detailed_edges& dest, const Eldag& eldag,
+        const Orbits& orbits, Point from, Point to)
+    {
+        Detailed_edge edge{};
+        size_t base_idx = eldag.ia[from];
+        size_t n_valences = eldag.n_valences(from);
+
+        for (size_t i = 0; i < n_valences; ++i) {
+            Point conn_node = eldag.edges[base_idx + i];
+
+            if (conn_node == to) {
+                size_t index = perms_[from] ? *perms_[from] << i : i;
+                edge.push_back(orbits[from][index]);
+            }
+        }
+
+        if (edge.size() == 0)
+            return;
+        std::sort(edge.begin(), edge.end());
+        dest.push_back(std::move(edge));
+
+        return;
+    }
+
+    //
+    // Data fields
+    //
+
+    /** The partition of graph nodes.
+     *
+     * It can be coarse initially, and then refined.
+     */
+
+    Partition partition_;
+
+    /** The current permutations applied to the nodes.
+     */
+
+    internal::Borrowed_perms<P> perms_;
+
+    /** The current symmetries for each of the nodes.
+     */
+
+    Node_symms<P> symms_;
+
+    /** The permutation on each node after refinement.
+     */
+
+    Node_Perms<P> refined_perms_;
+
+    /** Refined symmetries for each node.
+     */
+
+    internal::Owned_symms<P> refined_symms_;
+
+    /**
+     * The point that is individualized in the construction of this coset.
+     */
+
+    Point individualized_;
+};
 
             const auto& p = partition.get_pre_imgs();
             const auto& q = inv.operand.get_pre_imgs();
