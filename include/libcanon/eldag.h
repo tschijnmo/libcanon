@@ -741,36 +741,91 @@ template <typename P> struct Eldag_perm {
      */
 
     Point operator>>(Point point) const { return partition >> point; }
+
+    /** Gets the permutations for each node.
+     *
+     * The returned vector will have borrowed reference for the permutations.
+     */
+
+    internal::Borrowed_perms<P> get_perms() const
+    {
+        internal::Borrowed_perms res{};
+
+        for (const auto& i : perms) {
+            res.push_back(i.get());
+        }
+
+        return res;
+    }
 };
 
-        Perm get_a_perm(const Coset& coset) { return coset.get_a_perm(); }
+/** The actual refiner for Eldag canonicalization.
+ */
 
-        /** Acts a permutation on an Eldag.
-         */
+template <typename P> class Eldag_refiner {
+public:
+    //
+    // Types required by the refiner protocol.
+    //
 
-        Eldag act(const Eldag& eldag, Perm perm)
-        {
-            return act(eldag, perm.partition.make_perm(), perm.perms);
-        }
+    using Coset = Eldag_coset<P>;
+    using Structure = Eldag;
 
-        /** Left multiplies an automorphism onto a coset.
-         */
+    //
+    // Types not required by the refiner protocol.
+    //
+    // They are included here just for convenience.
 
-        Coset left_mult(const Simple_perm& perm, const Coset& coset)
-        {
-            return { coset, perm };
-        }
+    using Perm = Eldag_perm<P>;
 
-        /** Creates a transversal system for automorphisms.
-         */
+    /** Refines the given coset.
+     */
 
-        auto create_transv(const Coset& upper, const Coset& lower)
-        {
-            return std::move(std::make_unique<Transv>(
-                upper.size(), lower.get_individualized()));
-        }
-    };
-} // End namespace libcanon::internal.
+    std::vector<Coset> refine(const Eldag& eldag, const Coset& coset)
+    {
+        return coset.individualize_first_nonsingleton();
+    }
+
+    /** Decides if a coset is a leaf.
+     */
+
+    bool is_leaf(const Eldag& eldag, Coset& coset)
+    {
+        return coset.is_leaf(eldag);
+    }
+
+    /** Gets a permutation from a coset.
+     */
+
+    Perm get_a_perm(const Coset& coset) { return coset.get_a_perm(); }
+
+    /** Acts a permutation on an Eldag.
+     */
+
+    Eldag act(const Perm& perm, const Eldag& eldag)
+    {
+        return act(eldag, perm.partition, perm.get_perms());
+    }
+
+    /** Left multiplies an automorphism onto a coset.
+     */
+
+    Coset left_mult(const Simple_perm& perm, const Coset& coset)
+    {
+        return { coset, perm };
+    }
+
+    /** Creates a transversal system for automorphisms.
+     */
+
+    auto create_transv(const Coset& upper, const Coset& lower)
+    {
+        assert(upper.size() == lower.size());
+
+        return std::make_unique<Sims_transv<P>>(
+            upper.size(), lower.individualized());
+    }
+};
 
 template <typename A, typename F>
 std::tuple<Simple_perm, Perms<A>, Sims_transv<Perm<A>>> canon_eldag(
