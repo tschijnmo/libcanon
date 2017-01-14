@@ -78,7 +78,7 @@ public:
     /** Releases pointer to the next level of the transversal system.
      */
 
-    return std::unique_ptr<Sims_transv> release_next()
+    std::unique_ptr<Sims_transv> release_next()
     {
         return std::move(next_);
     }
@@ -227,7 +227,7 @@ private:
          * A constant reference to a permutation will be returned.
          */
 
-        const P& operator*() { return *transv_->transv_[curr]; }
+        const P& operator*() { return *transv_->transv_[curr_]; }
 
         /** Compares iterators for equality.
          */
@@ -305,7 +305,7 @@ namespace internal {
 
         Jerrum_container(size_t size)
             : std::vector<P>()
-            , graph(size)
+            , graph_(size)
         {
             this->reserve(size - 1);
         }
@@ -521,9 +521,9 @@ std::unique_ptr<Sims_transv<P>> build_sims_sys(size_t size, std::vector<P> gens)
 {
 
     // The dummy head for the transversal system.
-    Sims_transv head(0, size);
+    Sims_transv<P> head(0, size);
 
-    Sims_transv* curr = &head;
+    Sims_transv<P>* curr = &head;
     std::unique_ptr<P> new_transv;
 
     Point begin = 0;

@@ -259,7 +259,7 @@ public:
         Point i;
         for (i = 0; i < size(); ++i) {
             if (i != *this >> i)
-                break
+                break;
         }
         return i;
     }
@@ -450,7 +450,7 @@ using Simple_perm = Perm<char>;
 template <typename P, typename It> P chain(size_t size, It begin, It end)
 {
     // Initialize the accompanied action, here we start from identity.
-    using Acc = std::remove_reference_t<decltype<std::declval<P>().acc()>>;
+    using Acc = std::remove_reference_t<decltype(std::declval<P>().acc())>;
     Acc acc(0);
 
     // Two pre-image arrays are needed to preserve the values.

@@ -57,7 +57,7 @@ template <typename T> struct Ensure_unique_ptr<std::unique_ptr<T>> {
 };
 
 template <typename T>
-using Ensure_unique_ptr_t = typename Strip_unique_ptr<T>::type;
+using Ensure_unique_ptr_t = typename Ensure_unique_ptr<T>::type;
 
 } // End namespace libcanon.
 

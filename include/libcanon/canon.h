@@ -73,7 +73,7 @@ namespace libcanon {
  * This meta function ensures that a type `Coset` is defined inside it.
  */
 
-template <typename R> using Coset_of<R> = typename R::Coset;
+template <typename R> using Coset_of = typename R::Coset;
 
 /** The structure type for a refiner.
  *
@@ -81,7 +81,7 @@ template <typename R> using Coset_of<R> = typename R::Coset;
  * refiner class.
  */
 
-template <typename R> using Structure_of<R> = typename R::Structure;
+template <typename R> using Structure_of = typename R::Structure;
 
 /** Permutation type for a refiner.
  *
@@ -90,7 +90,7 @@ template <typename R> using Structure_of<R> = typename R::Structure;
  */
 
 template <typename R>
-using Perm_of<R> = std::result_of_t<decltype (&R::get_a_perm)(Coset_of<R>)>;
+using Perm_of = std::result_of_t<decltype (&R::get_a_perm)(Coset_of<R>)>;
 
 /** The result of acting a permutation on a structure.
  *
