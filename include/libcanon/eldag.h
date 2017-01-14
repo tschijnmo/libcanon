@@ -679,54 +679,69 @@ private:
     Point individualized_;
 };
 
-            const auto& p = partition.get_pre_imgs();
-            const auto& q = inv.operand.get_pre_imgs();
+/** Data type for a permutation on an Eldag.
+ *
+ * Inside it, we have not only the global permutation of the nodes, but the
+ * permutation on valences of each nodes as well.
+ *
+ * Note that the permutation stored in the graph automorphism are not of
+ * this type, but rather simple permutations of the nodes.  This is
+ * achieved by delegate to proxy types for the expression `g | ~h`.
+ */
 
-            for (size_t i = 0; i < size; ++i) {
-                // By ~q, q[i] <- i;
-                pre_imgs[q[i]] = p[i];
-            }
+template <typename P> struct Eldag_perm {
 
-            return { pre_imgs.begin(), pre_imgs.end() };
-        }
+    /** The permutations on each of the nodes. */
 
-        /** Gets the pre-image of a given point.
-         */
+    Perms<P> perms;
 
-        Point operator>>(Point point) const { return partition >> point; }
-    };
-
-    /**
-     * The actual refiner for Eldag canonicalization.
+    /** The global partition of the nodes.
+     *
+     * It should be a singleton partition already.
      */
 
-    template <typename A> class Eldag_refiner {
-    public:
-        //
-        // Types required by the refiner protocol.
-        //
+    Partition partition;
 
-        using Coset = Eldag_coset<A>;
-        using Perm = Eldag_perm<A>;
-        using Transv = Sims_transv<Simple_perm>;
-        using Structure = Eldag;
-        using Container = std::unordered_map<Eldag, Perm>;
+    /** The class for the inversion of an Eldag permutation. */
 
-        /** Refines the given coset.
-         */
+    struct Inv_eldag_perm {
+        const Eldag_perm& operand;
+    };
 
-        std::vector<Coset> refine(const Coset& coset)
-        {
-            return coset.individualize_first_nonsingleton();
+    /** Inverses a permutation.
+     *
+     * No actual inversion is done.  Just a proxy is returned.
+     */
+
+    Inv_eldag_perm operator~() const { return { *this }; }
+
+    /** Forms an automorphism.
+     *
+     * This function will be called by the generic canonicalization
+     * function by the evaluation of the expression `p | ~q`.
+     */
+
+    Simple_perm operator|(const Inv_eldag_perm& inv)
+    {
+        size_t size = partition.size();
+        std::vector<Point> pre_imgs(size);
+
+        const auto& p = partition.get_pre_imgs();
+        const auto& q = inv.operand.get_pre_imgs();
+
+        for (size_t i = 0; i < size; ++i) {
+            // By ~q, q[i] <- i;
+            pre_imgs[q[i]] = p[i];
         }
 
-        /** Decides if a coset is a leaf.
-         */
+        return std::move(pre_imgs);
+    }
 
-        bool is_leaf(Coset& coset) { return coset.is_leaf(); }
+    /** Gets the pre-image of a given point.
+     */
 
-        /** Gets a permutation from a coset.
-         */
+    Point operator>>(Point point) const { return partition >> point; }
+};
 
         Perm get_a_perm(const Coset& coset) { return coset.get_a_perm(); }
 
