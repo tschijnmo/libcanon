@@ -14,7 +14,6 @@
 #include <iterator>
 #include <memory>
 #include <numeric>
-#include <tuple>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -827,17 +826,26 @@ public:
     }
 };
 
-template <typename A, typename F>
-std::tuple<Simple_perm, Perms<A>, Sims_transv<Perm<A>>> canon_eldag(
-    const Eldag& eldag, const Symms<A>& symms, F init_colour)
+/** Canonicalizes the given Eldag.
+ *
+ * Similar to the case of string canonicalization, here the permutation bring
+ * the Eldag into canonical form is returned.  But the automorphism group
+ * returned is with respect to the original graph rather than the canonical
+ * form.
+ */
+
+template <typename P, typename F>
+std::pair<Eldag_perm<P>, Sims_transv<P>> canon_eldag(
+    const Eldag& eldag, const Symms<P>& symms, F init_colour)
 {
-    Partition init_part{ eldag.size() };
+    Partition init_part(eldag.size());
     init_part.split_by_key(0, init_colour);
 
-    using Refiner = internal::Eldag_refiner<A>;
-    Refiner refiner{};
-    internal::Eldag_coset<A> root_coset{ init_part, symms };
-    typename Refiner::Container container{};
+    Eldag_refiner<P> refiner{};
+    Eldag_coset<P> root_coset(init_part, symms);
+
+    using Container = std::unorderd_map<Eldag, Eldag_perm<P>>;
+    Container container{};
 
     auto aut = add_all_candidates(refiner, eldag, root_coset, container);
 
@@ -845,8 +853,7 @@ std::tuple<Simple_perm, Perms<A>, Sims_transv<Perm<A>>> canon_eldag(
         = std::min_element(container.begin(), container.end(),
             [](const auto& a, const auto& b) { return a.first < b.first; });
 
-    return { canon_form.second.make_perm(), std::move(canon_form.second.perms),
-        std::move(aut) };
+    return { std::move(canon_form.second), std::move(aut) };
 }
 
 } // End namespace libcanon.
