@@ -16,7 +16,7 @@ function(add_simple_test name)
     target_include_directories("${name}" PRIVATE 
         "${libcanon_SOURCE_DIR}/include"
         "${gtest_SOURCE_DIR}/include")
-    target_link_libraries(gtest gtest_main)
+    target_link_libraries("${name}" gtest gtest_main)
     add_test(NAME "${name}" COMMAND "${name}")
 endfunction()
 
