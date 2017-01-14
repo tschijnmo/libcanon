@@ -758,6 +758,17 @@ template <typename P> struct Eldag_perm {
     }
 };
 
+/** Acts an eldag with a given permutation.
+ *
+ * This is a convenience wrapper function for acting the permutations
+ * encapsulated in an Eldag_perm object onto an Eldag.
+ */
+
+template <typename P> Eldag act(const Eldag& eldag, const Eldag_perm<P>& perm)
+{
+    return act(eldag, perm.partition.make_perm(), perm.get_perms());
+}
+
 /** The actual refiner for Eldag canonicalization.
  */
 
@@ -801,10 +812,7 @@ public:
     /** Acts a permutation on an Eldag.
      */
 
-    Eldag act(const Perm& perm, const Eldag& eldag)
-    {
-        return act(eldag, perm.partition, perm.get_perms());
-    }
+    Eldag act(const Perm& perm, const Eldag& eldag) { return act(eldag, perm); }
 
     /** Left multiplies an automorphism onto a coset.
      */
