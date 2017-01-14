@@ -140,10 +140,12 @@ template <typename G, typename L>
 Eldag act(const Eldag& eldag, const G& gl_perm, const L& perms)
 {
     size_t size = eldag.size();
-    Eldag res{ size, eldag.edges.size() };
+    Eldag res(size, eldag.n_edges());
+    res.ia.clear();
 
     // The index that the next connection is going to be written to.
     size_t curr_idx = 0;
+    res.ia.push_back(curr_idx);
 
     // Constructs the nodes in the result one-by-one.
     for (size_t curr = 0; curr < size; ++curr) {
@@ -159,6 +161,8 @@ Eldag act(const Eldag& eldag, const G& gl_perm, const L& perms)
                 offset = *perms[curr] >> offset;
             }
 
+            assert(offset >= 0 && offset < valence);
+
             Point conn = gl_perm << eldag.edges[prev_base + offset];
             res.edges[curr_idx] = conn;
             ++curr_idx;
@@ -166,8 +170,6 @@ Eldag act(const Eldag& eldag, const G& gl_perm, const L& perms)
 
         res.ia.push_back(curr_idx);
     }
-
-    res.ia.push_back(curr_idx);
 
     return res;
 }
