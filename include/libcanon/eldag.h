@@ -873,6 +873,17 @@ template <> struct hash<libcanon::Eldag> {
         return eldag.hash();
     }
 };
-}
+
+/** Hash for Eldag coset.
+ */
+
+template <typename P> struct hash<libcanon::Eldag_coset<P>> {
+    size_t operator()(const libcanon::Eldag_coset<P>& coset) const
+    {
+        return coset.hash();
+    }
+};
+
+} // End namespace std
 
 #endif // LIBCANON_ELDAG_H
