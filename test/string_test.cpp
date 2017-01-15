@@ -13,6 +13,11 @@
 
 using namespace libcanon;
 
+//
+// Test fixture
+// ------------
+//
+
 /** Test fixture for S3 group.
  *
  * This is a slight complication of the S3 group for better test coverage of
@@ -26,12 +31,12 @@ using namespace libcanon;
  *
  */
 
-class C3_test : public ::testing::Test {
+class S3_test : public ::testing::Test {
 public:
     /** Sets up the test fixture.
      */
 
-    C3_test()
+    S3_test()
         : cyclic({ 1, 2, 0, 4, 5, 3 })
         , transpose(std::vector<size_t>({ 1, 0, 2, 4, 3, 5 }),
               1) // Test another constructor.
@@ -60,3 +65,66 @@ public:
 
     std::vector<size_t> corresp;
 };
+
+//
+// Tests of basic permutation facility
+// -----------------------------------
+//
+
+/** Tests of the basic methods of the perm class.
+ */
+
+TEST_F(S3_test, perm_methods)
+{
+
+    // Modular arithmetic of the point labels.
+    //
+    // Here we hard code the result so that we can avoid the problems with
+    // unsigned integer arithmetic.
+
+    auto plus1 = [](Point point) -> Point {
+        if (point == 2) {
+            return 0;
+        } else if (point == 5) {
+            return 3;
+        } else {
+            return point + 1;
+        }
+    };
+
+    auto minus1 = [](Point point) -> Point {
+        if (point == 0) {
+            return 2;
+        } else if (point == 3) {
+            return 5;
+        } else {
+            return point - 1;
+        }
+    };
+
+    // Test the pre-image and image operator by using the cyclic permutation.
+    for (size_t i = 0; i < 6; ++i) {
+        EXPECT_EQ(cyclic >> i, plus1(i));
+        EXPECT_EQ(cyclic << i, minus1(i));
+    }
+
+    // Test the accompanied action.
+    EXPECT_EQ(cyclic.acc(), 0);
+    EXPECT_EQ(transpose.acc(), 1);
+
+    // Test the size query.
+    for (const auto& i : { cyclic, transpose }) {
+        EXPECT_EQ(i.size(), 6);
+    }
+
+    // Test the detection of the first moved point.
+    for (const auto& i : { cyclic, transpose }) {
+        EXPECT_EQ(i.get_earliest_moved(), 0);
+    }
+
+    // Another test for identity permutations.
+    size_t test_size = 6;
+    Simple_perm identity(test_size);
+    EXPECT_EQ(identity.size(), test_size);
+    EXPECT_EQ(identity.get_earliest_moved(), test_size);
+}
