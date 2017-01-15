@@ -20,3 +20,9 @@ function(add_simple_test name)
     add_test(NAME "${name}" COMMAND "${name}")
 endfunction()
 
+#
+# Actual tests
+#
+
+add_simple_test(string_test)
+
