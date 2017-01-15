@@ -498,7 +498,7 @@ concept bool Transv = requires () {
     { transv.next() } -> T*;
     { transv.has(perm) } -> bool;
     { transv.get_repr(perm) } -> const T::Perm*;
-    { transv.insert(perm) };
+    { transv.insert(perm) } -> const T::Perm*;
 };
 
 // clang-format on

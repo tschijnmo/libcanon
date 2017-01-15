@@ -53,12 +53,20 @@ public:
      * for that coset yet.
      */
 
-    template <typename T> void insert(T&& perm)
+    template <typename T> const P* insert(T&& perm)
     {
         Point label = perm >> target_;
-        if (label == target_ || transv_[label])
-            return;
-        transv_[label] = std::make_unique<P>(std::forward<T>(perm));
+
+        if (label == target_)
+            return nullptr; // We never store identity explicitly.
+
+        auto& slot = transv_[label];
+
+        if (!slot) {
+            slot = std::make_unique<P>(std::forward<T>(perm));
+        }
+
+        return slot.get();
     }
 
     /** Gets the pointer to the next level of transversal system.
@@ -78,10 +86,7 @@ public:
     /** Releases pointer to the next level of the transversal system.
      */
 
-    std::unique_ptr<Sims_transv> release_next()
-    {
-        return std::move(next_);
-    }
+    std::unique_ptr<Sims_transv> release_next() { return std::move(next_); }
 
     //
     // Problem specific
