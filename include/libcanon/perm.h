@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <initializer_list>
 #include <iterator>
 #include <memory>
 #include <numeric>
@@ -152,10 +153,25 @@ public:
         set_images();
     }
 
+    /** Direct construction from initializer list.
+     *
+     * The given initializer list should give the pre-image array.  This is
+     * mostly useful for debugging and testing inside C++.  This might not be
+     * helpful for interfacing with other languages.
+     */
+
+    Perm(std::initializer_list<size_t> pre_images, A acc = 0)
+        : images_()
+        , pre_images_(pre_images)
+        , acc_(acc)
+    {
+        set_images();
+    }
+
     /** Creates an identity permutation.
      */
 
-    Perm(size_t size)
+    explicit Perm(size_t size)
         : images_(size)
         , pre_images_(size)
         , acc_(0)
@@ -184,6 +200,8 @@ public:
 
     /** Copy-constructs a permutation.
      */
+
+    Perm(Perm& perm) = default;
 
     Perm(const Perm& perm) = default;
 
