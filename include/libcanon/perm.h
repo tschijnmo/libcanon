@@ -518,17 +518,28 @@ namespace internal {
      * added to the container for permutations to pass.  Or it will be added to
      * the given transversal container if no representative is already present
      * for its coset.
+     *
+     * For cases where the permutation is added either to the transversal
+     * system or to the given vector, a pointer to the added permutation will
+     * be returned.  Null value will be returned if the permutation is not
+     * added anywhere.
      */
 
     template <typename P, typename T, typename V>
-    void proc_perm_for_transv(P&& perm, T& transv, V& perms_to_pass)
+    const typename T::Perm* proc_perm_for_transv(
+        P&& perm, T& transv, V& perms_to_pass)
     {
         if (transv.has(perm)) {
             perms_to_pass.push_back(std::forward<P>(perm));
+            return &perms_to_pass.back();
         } else {
             auto repr = transv.get_repr(perm);
-            if (repr == nullptr) {
-                transv.insert(std::forward<P>(perm));
+            if (!repr) {
+                auto new_addr = transv.insert(std::forward<P>(perm));
+                assert(new_addr);
+                return new_addr;
+            } else {
+                return nullptr;
             }
         }
     }
@@ -571,6 +582,8 @@ template <typename T> void adapt_trasv(T& input, T& output)
     std::for_each(inputs.rbegin(), input.rend(), [&](T* curr_input) {
 
         using Perm_vector = std::vector<typename T::Perm>;
+        using Perm_pointer_vector = std::vector<const typename T::Perm*>;
+
         Perm_vector passed_perms{};
         std::move(begin(*curr_input), end(*curr_input),
             std::back_inserter(passed_perms));
@@ -578,41 +591,52 @@ template <typename T> void adapt_trasv(T& input, T& output)
         for (T* curr_output = &output; curr_output;
              curr_output = curr_output->next()) {
 
-            std::vector<const typename T::Perm*> existing{};
+            // The vector of pointers to the existing permutations in the
+            // transversal system and the permutations passed down.
+
+            Perm_pointer_vector existing{};
             std::transform(begin(*curr_output), end(*curr_output),
                 std::back_inserter(existing),
                 [](const auto& perm) { return &perm; });
 
+            Perm_pointer_vector passed{};
+            std::transform(passed_perms.begin(), passed_perms.end(),
+                std::back_inserter(passed),
+                [](const auto& perm) { return &perm; });
+
+            // The permutations to pass down.
+            Perm_vector perms_to_pass{};
+
             // Passed permutation times identity. It is treated before the
             // actual products so that we can use move whenever it is
             // possible.
-            //
-            // TODO: fix the moving semantics here.
 
-            for (const auto& passed_perm : passed_perms) {
-                internal::proc_perm_for_transv(
-                    std::move(passed_perm), *curr_output, perms_to_pass);
+            for (const auto& i : passed) {
+                auto res = internal::proc_perm_for_transv(
+                    std::move(*i), *curr_output, perms_to_pass);
+                if (res) {
+                    i = res; // Update to new location of the permutation.
+                }
             }
 
             // Other products, passed times existing.
 
-            for (const auto& passed_perm : passed_perms) {
-                for (auto existing_perm : existing) {
-                    internal::proc_perm_for_transv(passed_perm | *existing_perm,
-                        *curr_output, perms_to_pass);
+            for (auto i : passed) {
+                for (auto j : existing) {
+                    internal::proc_perm_for_transv(
+                        *i | *j, *curr_output, perms_to_pass);
                 }
             }
 
-            passed_perms.clear();
-            passed_perms.swap(perms_to_pass);
-
+            passed_perms = std::move(perms_to_pass);
         } // End loop output level.
+
+        // If the two transversal are indeed for the same core kernel, we
+        // should have nothing left now.
+        assert(passed_perms.empty());
 
     }); // End loop input level.
 
-    // If the two transversal are indeed for the same core kernel, we should
-    // have nothing left now.
-    assert(passed_perms.empty());
     return;
 }
 
