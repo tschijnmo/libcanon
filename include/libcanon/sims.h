@@ -50,23 +50,27 @@ public:
     /** Inserts a permutation into the transversal system.
      *
      * The given permutation is inserted only when there is no representative
-     * for that coset yet.
+     * for that coset yet.  The pointer to the inserted permutation will be
+     * returned if the permutation is really inserted.
      */
 
     template <typename T> const P* insert(T&& perm)
     {
         Point label = perm >> target_;
 
-        if (label == target_)
-            return nullptr; // We never store identity explicitly.
+        if (label == target_) {
+            // Subset is always already represented by the implicit identity.
+            return nullptr;
+        }
 
         auto& slot = transv_[label];
 
         if (!slot) {
             slot = std::make_unique<P>(std::forward<T>(perm));
+            return slot.get();
+        } else {
+            return nullptr;
         }
-
-        return slot.get();
     }
 
     /** Gets the pointer to the next level of transversal system.

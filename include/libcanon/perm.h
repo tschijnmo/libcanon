@@ -568,7 +568,9 @@ namespace internal {
  * - It needs to support methods `has`, `get_repr`, and `insert`, to test if a
  *   permutation is in the subgroup of the transversal system, to get a
  *   constant pointer to a coset representative (NULL if not present), and to
- *   insert a permutation into the transversal.
+ *   insert a permutation into the transversal.  The insertion method should
+ *   return a pointer to the inserted permutation if it is inserted, and a null
+ *   pointer if the given permutation is already represented.
  */
 
 template <typename T> void adapt_trasv(T& input, T& output)
