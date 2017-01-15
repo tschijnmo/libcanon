@@ -157,24 +157,24 @@ public:
 
     template <typename E> void conj(const E& perm)
     {
-        Point new_target = perm << target;
-        size_t size = transv.size();
+        Point new_target = perm << target_;
+        size_t size = transv_.size();
         Transv_container new_transv(size);
 
         for (size_t i = 0; i < size; ++i) {
-            auto& repr = transv[i];
+            auto& repr = transv_[i];
             if (repr) {
                 auto new_perm = std::make_unique<P>(~perm | *repr | perm);
-                Point new_label = *new_perm >> target;
+                Point new_label = *new_perm >> target_;
 
                 // new_perm is guaranteed to be non-identity.
                 new_transv[new_label] = std::move(new_perm);
             }
         }
 
-        transv.swap(new_transv);
-        if (next)
-            next->conj(perm);
+        transv_.swap(new_transv);
+        if (next_)
+            next_->conj(perm);
     }
 
 private:
@@ -480,7 +480,7 @@ namespace internal {
 
                 for (const auto& i : gens) {
                     auto new_point = i << curr_point;
-                    auto repr = tentative.get_repr(loc);
+                    auto repr = tentative.get_repr(new_point);
                     if (new_point == target || repr)
                         continue;
 

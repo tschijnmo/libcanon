@@ -113,7 +113,7 @@ using Act_res_of
 // clang-format off
 
 template <typename R>
-using Transv_of = internal::Ensure_unique_ptr_t<std::result_of_t<
+using Transv_of = Ensure_unique_ptr_t<std::result_of_t<
     decltype(&R::create_transv)(Coset_of<R>, Coset_of<R>)
 >>;
 
@@ -224,7 +224,7 @@ public:
             // For leaf states, we store the permutation and the action result.
 
             perm_ = std::make_unique<Perm>(refiner_.get_a_perm(coset));
-            form_ = std::make_unique<Act_res>(refiner_.act(*perm, obj));
+            form_ = std::make_unique<Act_res>(refiner_.act(*perm_, obj));
         } else {
             // For non-leaf states, we store all the refinements and extend a
             // path from one of the children.
@@ -292,7 +292,7 @@ public:
             return nullptr;
         } else {
             // For non-leaf nodes.
-            auto transv = refiner.create_transv(base_, *curr_coset_);
+            auto transv = refiner_.create_transv(base_, *curr_coset_);
             transv.set_next(curr_exp_path_->prepare_transv());
             return transv;
         }
@@ -339,7 +339,7 @@ public:
             auto n_erased = children_.erase(anchor);
             assert(n_erased == 1);
 
-            if (!children.empty()) {
+            if (!children_.empty()) {
                 set_curr();
                 auto new_aut = prepare_transv();
                 adapt_transv(*aut, *new_aut);
@@ -383,7 +383,7 @@ public:
         // for faster removal without hashing and equality comparison involved.
 
         auto child_it = children_.begin();
-        while (child_it != children.end()) {
+        while (child_it != children_.end()) {
             Exp_path* curr = child_it->second.get();
 
             const auto& leaf = curr->get_a_leaf();
@@ -391,7 +391,7 @@ public:
             auto existing = container.find(leaf.form());
             if (existing == container.end()) {
                 // Non identical siblings will be treated later.
-                ++i;
+                ++child_it;
                 continue;
             } else {
                 // When we find an identical sibling.
@@ -399,8 +399,8 @@ public:
                     // Skip identity permutation.
                     aut->insert(existing->second | ~leaf.perm());
                 }
-                auto to_remove = i; // Make a copy of the iterator.
-                ++i;
+                auto to_remove = child_it; // Make a copy of the iterator.
+                ++child_it;
                 children_.erase(to_remove);
                 // Note that the pointers curr_exp_path_ and curr_coset_
                 // will be invalidated after this loop.
@@ -426,6 +426,11 @@ private:
     // Internal utility methods.
     //
 
+    /** Container for the children of the base coset.
+     */
+
+    using Children = std::unordered_map<Coset, std::unique_ptr<Exp_path>>;
+
     /** Sets the current coset and experimental path to begin of children.
      *
      * False will be returned if the children container is empty.
@@ -449,7 +454,7 @@ private:
 
     void set_paths()
     {
-        for (auto i& : children_) {
+        for (auto& i : children_) {
             set_path(i);
         }
     }
@@ -459,7 +464,7 @@ private:
      * The path is created only when there is no one already.
      */
 
-    void set_path(Children::reference child)
+    void set_path(typename Children::reference child)
     {
         if (!child.second) {
             child.second
@@ -482,7 +487,6 @@ private:
     const Coset& base_;
 
     // For non-leaf nodes
-    using Children = std::unorderd_map<Coset, std::unique_ptr<Exp_path>>;
     Children children_;
     Coset* curr_coset_;
     Exp_path* curr_exp_path_;

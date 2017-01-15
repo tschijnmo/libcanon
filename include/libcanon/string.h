@@ -53,13 +53,13 @@ public:
         : prev_(&prev)
         , curr_(prev->next())
         , selected_(selected)
-        , perm_(curr->get_repr(selected))
-        , next_(curr->next())
+        , perm_(curr_->get_repr(selected))
+        , next_(curr_->next())
     {
         // We either have a coset representative or we have the implicit
         // identity.
 
-        assert(perm_ || selected_ == curr->target);
+        assert(perm_ || selected_ == curr_->target);
     }
 
     /** Constructs a root coset for the group given as a Sims transversal.
@@ -68,7 +68,7 @@ public:
     Sims_coset(const Sims_transv<P>& group)
         : prev_(nullptr)
         , curr_(nullptr)
-        , selected(0) // Not going to be used.
+        , selected_(group.size()) // Not going to be used.
         , perm_(nullptr)
         , next_(&group)
     {
@@ -82,7 +82,7 @@ public:
 
     friend Point operator>>(const Sims_coset& coset, Point point)
     {
-        for (const Sims_coset* i = &coset; !i->is_root(); i = curr->prev_) {
+        for (const Sims_coset* i = &coset; !i->is_root(); i = i->prev_) {
             if (i->perm_) {
                 point = *i->perm >> point;
             } else {
@@ -101,7 +101,7 @@ public:
     {
         std::vector<const P*> perms{};
 
-        for (const Sims_coset* i = this; !i->is_root(); i = coset->prev_) {
+        for (const Sims_coset* i = this; !i->is_root(); i = i->prev_) {
             perms.push_back(i->perm_); // The permutation can be null.
         }
 
@@ -210,7 +210,7 @@ private:
  */
 
 template <typename S>
-using Alphabet_of<S> = std::remove_reference_t<std::result_of<
+using Alphabet_of = std::remove_reference_t<std::result_of<
     decltype(&S::operator[])(size_t)
 >>;
 
@@ -308,7 +308,7 @@ public:
         std::vector<Coset> children{}; // Named return value.
         std::transform(points_w_min.cbegin(), points_w_min.cend(),
             std::back_inserter(children),
-            [&](auto src) { return Sims_coset(coset, src); });
+            [&](auto src) { return Sims_coset<P>(coset, src); });
 
         return children;
     }
@@ -326,7 +326,7 @@ public:
      * This should only be called on leaf cosets.
      */
 
-    Perm get_a_perm(const Coset& coset) const
+    P get_a_perm(const Coset& coset) const
     {
         assert(coset.is_leaf());
         return coset.get_a_perm();
@@ -338,10 +338,10 @@ public:
      * the given structure.
      */
 
-    Sims_act_res<S> act(const Perm& perm, const S& obj) const
+    Sims_act_res<S> act(const P& perm, const S& obj) const
     {
         size_t size = perm.size();
-        Sims_act_res<S> result();
+        Sims_act_res<S> result{};
         result.reserve(size);
 
         for (size_t i = 0; i < size; ++i) {
@@ -354,7 +354,7 @@ public:
     /** Left multiplies a coset by a permutation.
      */
 
-    Coset left_mult(const Perm& perm, const Coset& coset) const
+    Coset left_mult(const P& perm, const Coset& coset) const
     {
         return { *coset.prev(), perm >> coset.selected() };
     }
@@ -395,7 +395,7 @@ std::pair<P, std::unique_ptr<Sims_transv<P>>> canon_string(
     auto aut = add_all_candidates(refiner, input, whole_group, candidates);
 
     const auto& canon_form
-        = std::min_element(container.begin(), container.end(),
+        = std::min_element(candidates.begin(), candidates.end(),
             [](const auto& a, const auto& b) { return a.first < b.first; });
 
     aut->conj(canon_form.second);
