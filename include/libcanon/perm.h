@@ -260,7 +260,13 @@ public:
     /** Gets the size of the permutation domain.
      */
 
-    size_t size() const { return images_.size(); }
+    size_t size() const
+    {
+        // Here the pre-images is used so that this method can be called even
+        // for the construction of the images vector.
+
+        return pre_images_.size();
+    }
 
     // Default assignment behaviour.
 
