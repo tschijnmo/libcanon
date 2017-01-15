@@ -533,14 +533,7 @@ namespace internal {
             perms_to_pass.push_back(std::forward<P>(perm));
             return &perms_to_pass.back();
         } else {
-            auto repr = transv.get_repr(perm);
-            if (!repr) {
-                auto new_addr = transv.insert(std::forward<P>(perm));
-                assert(new_addr);
-                return new_addr;
-            } else {
-                return nullptr;
-            }
+            return transv.insert(std::forward<P>(perm));
         }
     }
 
