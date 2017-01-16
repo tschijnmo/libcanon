@@ -165,3 +165,51 @@ TEST_F(S3_test, inv_perm)
     test_image(unevaled);
     test_image(evaled);
 }
+
+/** Tests of the product of permutations.
+ *
+ * Here we not only test simple products, the composition with inversion is
+ * also thoroughly tested.
+ */
+
+TEST_F(S3_test, mult_perm)
+{
+    // Identity, for convenience.
+    Simple_perm identity(size);
+
+    // Identity test facility.
+    auto expect_id = [&](const auto& expr) {
+        Simple_perm evaled(expr);
+        EXPECT_EQ(expr, identity);
+        EXPECT_EQ(evaled, identity);
+        EXPECT_EQ(expr, evaled);
+        EXPECT_EQ(evaled.get_earliest_moved(), size);
+    };
+
+    // t is for the transposition, here we test t t = 1.
+    expect_id(transpose | transpose);
+
+    // c is for the cyclic generator, here we test c c c = 1.
+    expect_id(cyclic | cyclic | cyclic);
+
+    // Another test for t t t = t.
+    auto ttt_unevaled = transpose | transpose | transpose;
+    Simple_perm ttt_evaled(ttt_unevaled);
+    EXPECT_EQ(ttt_unevaled, transpose);
+    EXPECT_EQ(ttt_evaled, transpose);
+
+    // Tests for the composition of multiplication and inverse.
+
+    auto test_prod_inv = [&](const auto& op) {
+        expect_id(op | ~op);
+        expect_id(~op | op);
+    };
+
+    // Atomic ones.
+    test_prod_inv(transpose);
+    test_prod_inv(cyclic);
+
+    // Non-atomic ones.
+    test_prod_inv(cyclic | cyclic);
+    test_prod_inv(~cyclic);
+}
