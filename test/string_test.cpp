@@ -37,13 +37,19 @@ public:
      */
 
     S3_test()
-        : cyclic({ 1, 2, 0, 4, 5, 3 })
+        : size(6)
+        , cyclic({ 1, 2, 0, 4, 5, 3 })
         , transpose(std::vector<size_t>({ 1, 0, 2, 4, 3, 5 }),
               1) // Test another constructor.
         , gens{ cyclic, transpose }
         , corresp{ 3, 4, 5 }
     {
     }
+
+    /** Size of the permutation domain.
+     */
+
+    size_t size;
 
     /** The cyclic permutation of the three points.
      */
@@ -123,8 +129,7 @@ TEST_F(S3_test, perm_methods)
     }
 
     // Another test for identity permutations.
-    size_t test_size = 6;
-    Simple_perm identity(test_size);
-    EXPECT_EQ(identity.size(), test_size);
-    EXPECT_EQ(identity.get_earliest_moved(), test_size);
+    Simple_perm identity(size);
+    EXPECT_EQ(identity.size(), size);
+    EXPECT_EQ(identity.get_earliest_moved(), size);
 }
