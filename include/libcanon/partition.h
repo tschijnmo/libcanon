@@ -25,6 +25,10 @@ namespace libcanon {
 
 class Partition {
 public:
+    //
+    // Construction and manipulation
+    //
+
     /** Initializes a trivial partition.
      */
 
@@ -144,6 +148,30 @@ public:
         return n_groups > 1;
     }
 
+    //
+    // Information access
+    //
+
+    /** Gets the size of the entire permutation domain.
+     */
+
+    size_t size() const { return perm_.size(); }
+
+    /** Gets the pre-image array of a permutation for the partition.
+     */
+
+    const Point_vec& get_pre_imgs() const { return perm_; }
+
+    /** Gets the pre-image of a given point.
+     */
+
+    Point operator>>(Point point) const { return perm_[point]; }
+
+    /** Makes a simple permutation object for the partition.
+     */
+
+    Simple_perm make_perm() const { return { perm.begin(), perm.end() }; }
+
     /** Tests if a partition is a discrete partition with only singletons.
      */
 
@@ -167,6 +195,12 @@ public:
      */
 
     size_t get_colour(Point point) const { return ends_[point]; }
+
+    //
+    // Iteration support
+    //
+    // Here we have facilities for both iteration over cells and for iteration
+    // over points in a cell.
 
     /** Gets an iterator for the points of a cell.
      */
@@ -244,26 +278,6 @@ public:
             return size();
         }
     }
-
-    /** Gets the size of the entire permutation domain.
-     */
-
-    size_t size() const { return perm_.size(); }
-
-    /** Gets the pre-image array of a permutation for the partition.
-     */
-
-    const Point_vec& get_pre_imgs() const { return perm_; }
-
-    /** Gets the pre-image of a given point.
-     */
-
-    Point operator>>(Point point) const { return perm_[point]; }
-
-    /** Makes a simple permutation object for the partition.
-     */
-
-    Simple_perm make_perm() const { return { perm.begin(), perm.end() }; }
 
     /** Iterator type for cells in the partition.
      *
