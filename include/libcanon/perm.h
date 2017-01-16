@@ -383,7 +383,7 @@ private:
 
 template <typename T> auto operator~(const Perm_expr<T>& expr)
 {
-    return Inv_perm<T>(expr);
+    return Inv_perm<T>(static_cast<const T&>(expr));
 }
 
 /** Expression for the product of two permutation expressions.
@@ -460,7 +460,8 @@ auto operator|(const Perm_expr<T1>& left, const Perm_expr<T2>& right)
     assert(left.size() == right.size()
         && "Two operands need act on the same domain");
 
-    return Perm_prod<T1, T2>(left, right);
+    return Perm_prod<T1, T2>(
+        static_cast<const T1&>(left), static_cast<const T2&>(right));
 }
 
 /** Type for simple permutations.
