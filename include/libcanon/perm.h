@@ -129,6 +129,15 @@ bool operator==(const Perm_expr<T1>& perm1, const Perm_expr<T2>& perm2)
     return true;
 }
 
+/** Gets the accompanied action type.
+ *
+ * This should be able to be applied for all permutation expressions without
+ * much problem.
+ */
+
+template <typename P>
+using Acc_of = std::decay_t<std::result_of_t<decltype (&P::acc)(P)>>;
+
 /** Atomic permutation type.
  *
  * Here a permutation is stored redundantly by two arrays for both the preimage
@@ -364,7 +373,7 @@ public:
     /** Gets the accompanied action of a permutation.
      */
 
-    auto acc() const { return operand_.acc() | operand_.acc(); }
+    Acc_of<T> acc() const { return operand_.acc() | operand_.acc(); }
 
     /** Gets the size of the permutation domain
      */
@@ -430,7 +439,7 @@ public:
     /** Gets the accompanied action of a permutation.
      */
 
-    auto acc() const { return left_.acc() ^ right_.acc(); }
+    Acc_of<T1> acc() const { return left_.acc() ^ right_.acc(); }
 
     /** Gets the size of the permutation domain
      *
@@ -454,8 +463,7 @@ private:
 template <typename T1, typename T2>
 auto operator|(const Perm_expr<T1>& left, const Perm_expr<T2>& right)
 {
-    static_assert(
-        std::is_same<decltype(left.acc()), decltype(right.acc())>::value,
+    static_assert(std::is_same<Acc_of<T1>, Acc_of<T2>>::value,
         "Two operands need to have the same accompanied action type.");
     assert(left.size() == right.size()
         && "Two operands need act on the same domain");
@@ -497,7 +505,7 @@ using Simple_perm = Perm<char>;
 template <typename P, typename It> P chain(size_t size, It begin, It end)
 {
     // Initialize the accompanied action, here we start from identity.
-    using Acc = std::remove_reference_t<decltype(std::declval<P>().acc())>;
+    using Acc = Acc_of<P>;
     Acc acc(0);
 
     // Two pre-image arrays are needed to preserve the values.
