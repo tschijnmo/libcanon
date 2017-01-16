@@ -5,6 +5,7 @@
  * transversal systems in sims.h, are both tested here.
  */
 
+#include <memory>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -290,4 +291,46 @@ TEST_F(S3_test, schreier_sims)
         ++expect;
     }
     EXPECT_EQ(expect, 3);
+}
+
+/** Tests the transversal adaptation algorithm.
+ *
+ * Here we test the transversal adaptation algorithm by adapting the Sims
+ * transversal system from the Schreier-Sims algorithm into another subgroup
+ * chain.
+ */
+
+TEST_F(S3_test, sims_adapt)
+{
+    using Transv = Sims_transv<Simple_perm>;
+
+    auto orig = build_sims_sys(size, gens);
+
+    // Here we simply use the subgroup chain of stabilizer of 2 > the
+    // stabilizer of 1 and 2.
+    Transv new_first(2, size);
+    new_first.set_next(std::make_unique<Transv>(1, size));
+    const Transv& new_second = *new_first.next();
+
+    adapt_transv(*orig, new_first);
+
+    // Examine the first level.
+    Point target = 2;
+    Point expect = 0;
+    EXPECT_EQ(new_first.target(), target);
+    for (const auto& i : new_first) {
+        EXPECT_EQ(i >> target, expect);
+        ++expect;
+    }
+    EXPECT_EQ(expect, target);
+
+    // Examine the second level.
+    target = 1;
+    expect = 0;
+    EXPECT_EQ(new_second.target(), target);
+    for (const auto& i : new_second) {
+        EXPECT_EQ(i >> target, expect);
+        ++expect;
+    }
+    EXPECT_EQ(expect, target);
 }
