@@ -392,6 +392,68 @@ public:
         return { *this, size(), true };
     }
 
+    //
+    // Normal form of partitions.
+    //
+
+    /** The normal form for partitions.
+     *
+     * The normal for for partitions is a nested vector, where we have a sorted
+     * vector of points for each cell.  Generally this normal form is much less
+     * efficient than what we have in the code.  However, it can be helpful for
+     * testing and debugging.
+     */
+
+    using Normal_form = std::vector<Point_vec>;
+
+    /** Gets the normal form of a partition.
+     */
+
+    Normal_form get_normal_form() const
+    {
+        Normal_form res{};
+
+        for (auto cell : *this) {
+            Point_vec cell(this->cell_begin(cell), this->cell_end(cell));
+            std::sort(cell.begin(), cell.end());
+            res.push_back(std::move(cell));
+        }
+
+        return res;
+    }
+
+    /** Builds a partition from its normal form.
+     */
+
+    Partition(const Normal_form& normal_form)
+        : perm_()
+        , begins_()
+        , ends_()
+    {
+        for (const auto& cell : normal_form) {
+            size_t begin_idx = perm_.size();
+            perm_.insert(perm_.end(), cell.begin(), cell.end());
+            size_t end_idx = perm_.size();
+            size_t cell_size = cell.size();
+            assert(end_idx == begin_idx + cell_size);
+
+            begins_.insert(begins_.end(), cell_size, begin_idx);
+            ends_.insert(ends_.end(), cell_size, end_idx);
+        }
+    }
+
+    /** Tests if two partitions are equal.
+     *
+     * Note that this function internally converts the partitions into their
+     * normal form.  So it can be slower than you might think.  Compare the
+     * normal form directly if the normal form can be reused.
+     */
+
+    bool operator==(const Partition& other) const
+    {
+        return get_normal_form == other.get_normal_form();
+    }
+
 private:
     /** Permutation of the given points
      */
