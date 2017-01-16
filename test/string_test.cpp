@@ -133,3 +133,35 @@ TEST_F(S3_test, perm_methods)
     EXPECT_EQ(identity.size(), size);
     EXPECT_EQ(identity.get_earliest_moved(), size);
 }
+
+/** Tests of the inversion of permutations.
+ *
+ * Here we use the involutory transposition for the testing.
+ */
+
+TEST_F(S3_test, inv_perm)
+{
+
+    // The unevaluated inversion.
+    auto unevaled = ~transpose;
+    EXPECT_EQ(unevaled.size(), size);
+    EXPECT_EQ(unevaled, transpose);
+
+    // Evaluations of the evaluated inversion.
+    Simple_perm evaled(unevaled);
+    EXPECT_EQ(evaled.size(), size);
+    EXPECT_EQ(evaled, transpose);
+    EXPECT_EQ(evaled, unevaled);
+
+    // Since the equality operator actually mostly tests the pre-image array,
+    // here we do additional tests for the image.
+
+    auto test_image = [&](const auto& expr) {
+        for (size_t i = 0; i < size; ++i) {
+            EXPECT_EQ(expr << i, transpose << i);
+        }
+    };
+
+    test_image(unevaled);
+    test_image(evaled);
+}
