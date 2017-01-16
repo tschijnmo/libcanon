@@ -537,7 +537,7 @@ std::unique_ptr<Sims_transv<P>> build_sims_sys(size_t size, std::vector<P> gens)
     Point begin = 0;
 
     while ((new_transv = internal::build_sims_transv(begin, size, gens))) {
-        begin = new_transv->target();
+        begin = new_transv->target() + 1;
         curr->set_next(std::move(new_transv));
         curr = curr->next();
     }
