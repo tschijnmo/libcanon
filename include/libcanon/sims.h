@@ -421,14 +421,14 @@ namespace internal {
                 // Special treatment since identity is never explicitly stored.
                 result.insert_gen(perm);
             } else {
-                result.insert_gen(perm | ~(*tentative.get_repr(perm)));
+                result.insert_gen(~(*tentative.get_repr(perm)) | perm);
             }
         };
 
         for (const auto& i : gens) {
             add2result(i); // Identity is not in tentative.
             for (const auto& j : tentative) {
-                add2result(j | i);
+                add2result(i | j);
             }
         }
 
