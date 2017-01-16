@@ -118,8 +118,8 @@ public:
         if (cell_size == 1)
             return false;
 
-        // Sorted the point within the cell according to the given key
-        // function.
+        // Sort the points within the cell according to the given key function.
+
         std::sort(cell_begin(point), cell_end(point),
             [&](auto x, auto y) { return get_key(x) < get_key(y); });
 
@@ -139,11 +139,13 @@ public:
                 for (size_t j = curr_begin; j < idx; ++j) {
                     ends_[perm_[j]] = idx; // Set ends_
                 }
-                curr_begin = dest_idx;
+                curr_begin = idx;
             }
 
             begins_[curr_point] = curr_begin; // Set begins_
         }
+
+        // The end of the points within the last cell need no update.
 
         return n_groups > 1;
     }
@@ -170,7 +172,7 @@ public:
     /** Makes a simple permutation object for the partition.
      */
 
-    Simple_perm make_perm() const { return { perm.begin(), perm.end() }; }
+    Simple_perm make_perm() const { return { perm_.begin(), perm_.end() }; }
 
     /** Tests if a partition is a discrete partition with only singletons.
      */
@@ -301,7 +303,7 @@ public:
 
         Cell_it& operator++()
         {
-            if (if_rev) {
+            if (if_rev_) {
                 curr_ = partition_->prev_cell(curr_);
             } else {
                 curr_ = partition_->next_cell(curr_);
@@ -414,9 +416,9 @@ public:
         Normal_form res{};
 
         for (auto cell : *this) {
-            Point_vec cell(this->cell_begin(cell), this->cell_end(cell));
-            std::sort(cell.begin(), cell.end());
-            res.push_back(std::move(cell));
+            Point_vec n_cell(this->cell_begin(cell), this->cell_end(cell));
+            std::sort(n_cell.begin(), n_cell.end());
+            res.push_back(std::move(n_cell));
         }
 
         return res;
@@ -451,7 +453,7 @@ public:
 
     bool operator==(const Partition& other) const
     {
-        return get_normal_form == other.get_normal_form();
+        return get_normal_form() == other.get_normal_form();
     }
 
 private:
