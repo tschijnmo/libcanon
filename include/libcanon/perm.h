@@ -621,7 +621,7 @@ namespace internal {
  *   pointer if the given permutation is already represented.
  */
 
-template <typename T> void adapt_trasv(T& input, T& output)
+template <typename T> void adapt_transv(T& input, T& output)
 {
     // Gather all transversals to loop over them in reverse order.
     std::vector<T*> inputs{};
@@ -629,7 +629,7 @@ template <typename T> void adapt_trasv(T& input, T& output)
         inputs.push_back(curr);
     }
 
-    std::for_each(inputs.rbegin(), input.rend(), [&](T* curr_input) {
+    std::for_each(inputs.rbegin(), inputs.rend(), [&](T* curr_input) {
 
         using Perm_vector = std::vector<typename T::Perm>;
         using Perm_pointer_vector = std::vector<const typename T::Perm*>;
@@ -661,7 +661,7 @@ template <typename T> void adapt_trasv(T& input, T& output)
             // actual products so that we can use move whenever it is
             // possible.
 
-            for (const auto& i : passed) {
+            for (auto& i : passed) {
                 auto res = internal::proc_perm_for_transv(
                     std::move(*i), *curr_output, perms_to_pass);
                 if (res) {
