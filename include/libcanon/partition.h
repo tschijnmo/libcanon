@@ -207,21 +207,33 @@ public:
     /** Gets an iterator for the points of a cell.
      */
 
-    Point_vec::const_iterator cell_begin(Point point) const
+    Point_vec::iterator cell_begin(Point point)
     {
-        auto it = perm_.cbegin();
-        std::advance(it, begins_[point]);
-        return it;
+        return get_vec_it(perm_, begins_[point]);
     }
 
     /** Gets the sentinel for the iterator over points in a cell.
      */
 
+    Point_vec::iterator cell_end(Point point)
+    {
+        return get_vec_it(perm_, ends_[point]);
+    }
+
+    /** Gets a  constant iterator for the points of a cell.
+     */
+
+    Point_vec::const_iterator cell_begin(Point point) const
+    {
+        return get_vec_it(perm_, begins_[point]);
+    }
+
+    /** Gets the sentinel for the constant iterator over points in a cell.
+     */
+
     Point_vec::const_iterator cell_end(Point point) const
     {
-        auto it = perm_.cbegin();
-        std::advance(it, ends_[point]);
-        return it;
+        return get_vec_it(perm_, ends_[point]);
     }
 
     /** Gets a point in the first cell of the partition.
@@ -457,7 +469,28 @@ public:
     }
 
 private:
-    /** Permutation of the given points
+    //
+    // Internal utility methods.
+    //
+
+    /** Gets the iterator to a particular location on a vector.
+     *
+     * This template can be used for different kinds of constness of this.
+     */
+
+    template <typename T>
+    static auto get_vec_it(T& vector, size_t idx) -> decltype(vector.begin())
+    {
+        auto it = vector.begin();
+        std::advance(it, idx);
+        return it;
+    }
+
+    //
+    // Data fields.
+    //
+
+    /** Permutation of the given points.
      */
 
     Point_vec perm_;
