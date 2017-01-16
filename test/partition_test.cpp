@@ -5,6 +5,8 @@
  * for eldag canonicalization.
  */
 
+#include <numeric>
+
 #include <gtest/gtest.h>
 
 #include <libcanon/partition.h>
@@ -37,4 +39,21 @@ public:
 
     Partition trivial;
 };
+
+/** Tests the trivial partition.
+ *
+ * Here we just have some have simple tests.  Most of the facilities are going
+ * to be tested on non-trivial partitions.
+ */
+
+TEST_F(Partition_test, test_trivial)
+{
+    Point_vec trivial_vec(size);
+    std::iota(trivial_vec.begin(), trivial_vec.end(), 0);
+    Partition::Normal_form normal{ trivial_vec };
+
+    EXPECT_EQ(trivial.get_normal_form(), normal);
+    EXPECT_EQ(trivial.make_perm(), Simple_perm(trivial_vec));
+    EXPECT_EQ(trivial, Partition(normal));
+}
 
