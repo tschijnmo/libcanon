@@ -146,3 +146,27 @@ TEST_F(Partition_test, test_refinement)
         }
     }
 }
+
+/** Tests individualization.
+ *
+ * In this test case, the creation of partition by individualization is tested.
+ * Since most other things in partitions are already tested.  Here we just
+ * check the correctness of individualization.
+ */
+
+TEST_F(Partition_test, test_individualization)
+{
+    for (size_t i = 0; i < size; ++i) {
+        Partition indived(trivial, i);
+
+        Point_vec indived_cell{ i };
+        Point_vec rest_cell{};
+        for (size_t j = 0; j < size; ++j) {
+            if (j != i)
+                rest_cell.push_back(j);
+        }
+        // The rest cell is sorted by construction.
+
+        EXPECT_EQ(indived, Partition({ indived_cell, rest_cell }));
+    }
+}
