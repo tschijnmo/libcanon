@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <iterator>
 #include <numeric>
 #include <vector>
 
@@ -517,5 +518,34 @@ private:
 };
 
 } // End namespace libcanon
+
+//
+// Std injection for cell iterators.
+//
+
+namespace std {
+
+/** Traits for the cell iterator.
+ */
+
+template <> struct iterator_traits<libcanon::Partition::Cell_it> {
+    /** The reference type.
+     *
+     * This iterator generates the points as R-value directly.
+     */
+
+    using reference = libcanon::Point;
+
+    /** The value type.
+     */
+
+    using value_type = libcanon::Point;
+
+    /** The iterator category.
+     */
+
+    using iterator_category = std::input_iterator_tag;
+};
+} // End namespace std
 
 #endif
