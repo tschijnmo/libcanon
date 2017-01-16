@@ -165,7 +165,8 @@ public:
      * array.
      */
 
-    template <typename T>
+    template <typename T,
+        typename = std::enable_if_t<std::is_constructible<Point_vec, T>::value>>
     Perm(T&& pre_images, A acc = 0)
         : images_()
         , pre_images_(std::forward<T>(pre_images))
