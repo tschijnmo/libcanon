@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <numeric>
 #include <vector>
 
 #include <libcanon/perm.h>
@@ -444,6 +445,13 @@ public:
         , begins_()
         , ends_()
     {
+        size_t size
+            = std::accumulate(normal_form.begin(), normal_form.end(), (size_t)0,
+                [](auto val, const auto& cell) { return val + cell.size(); });
+
+        begins_.resize(size);
+        ends_.resize(size);
+
         for (const auto& cell : normal_form) {
             size_t begin_idx = perm_.size();
             perm_.insert(perm_.end(), cell.begin(), cell.end());
@@ -451,8 +459,10 @@ public:
             size_t cell_size = cell.size();
             assert(end_idx == begin_idx + cell_size);
 
-            begins_.insert(begins_.end(), cell_size, begin_idx);
-            ends_.insert(ends_.end(), cell_size, end_idx);
+            for (auto i : cell) {
+                begins_[i] = begin_idx;
+                ends_[i] = end_idx;
+            }
         }
     }
 
