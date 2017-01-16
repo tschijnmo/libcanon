@@ -40,12 +40,12 @@ public:
     /** Tests if the permutation could be in this subgroup.
      */
 
-    bool has(const P& perm) { return target_ == (perm << target_); }
+    bool has(const P& perm) const { return target_ == (perm << target_); }
 
     /** Gets the coset representative of a permutation.
      */
 
-    const P* get_repr(const P& perm) { return get_repr(perm >> target_); }
+    const P* get_repr(const P& perm) const { return get_repr(perm >> target_); }
 
     /** Inserts a permutation into the transversal system.
      *
@@ -115,7 +115,7 @@ public:
     /** Gets a representative for the coset moving the given point to target.
      */
 
-    const P* get_repr(Point point)
+    const P* get_repr(Point point) const
     {
         const auto& found = transv_[point];
 
@@ -208,7 +208,7 @@ private:
      */
 
     class Sims_transv_it {
-
+    public:
         /** Constructs an iterator.
          */
 
@@ -349,7 +349,7 @@ namespace internal {
                     // When a loop if formed by the new perm.
                     //
                     // The product of all permutations along the path.
-                    P prod(size, stack.begin(), stack.end());
+                    auto prod = chain<P>(size, stack.begin(), stack.end());
                     // Here construction from an iterator of pointers are
                     // required.
 
@@ -419,11 +419,9 @@ namespace internal {
         auto add2result = [&](const auto& perm) {
             if (tentative.has(perm)) {
                 // Special treatment since identity is never explicitly stored.
-                //
-                // TODO: better treatment of moving semantics.
                 result.insert_gen(perm);
             } else {
-                result.insert_gen(perm | ~tentative.get_repr(perm));
+                result.insert_gen(perm | ~(*tentative.get_repr(perm)));
             }
         };
 
@@ -476,11 +474,11 @@ namespace internal {
 
             for (size_t curr_idx = 0; curr_idx < orbit.size(); ++curr_idx) {
                 auto curr_point = orbit[curr_idx];
-                auto curr_perm = tentative.get_repr(curr_point);
+                auto curr_perm = tentative->get_repr(curr_point);
 
                 for (const auto& i : gens) {
                     auto new_point = i << curr_point;
-                    auto repr = tentative.get_repr(new_point);
+                    auto repr = tentative->get_repr(new_point);
                     if (new_point == target || repr)
                         continue;
 
@@ -488,9 +486,9 @@ namespace internal {
                     orbit.push_back(new_point);
 
                     if (curr_point == target) {
-                        tentative.insert(~i);
+                        tentative->insert(~i);
                     } else {
-                        tentative.insert(~i | *repr);
+                        tentative->insert(~i | *repr);
                     }
                 }
             } // End while looping over orbit.
@@ -528,17 +526,18 @@ namespace internal {
 template <typename P>
 std::unique_ptr<Sims_transv<P>> build_sims_sys(size_t size, std::vector<P> gens)
 {
+    using Transv = Sims_transv<P>;
 
     // The dummy head for the transversal system.
-    Sims_transv<P> head(0, size);
+    Transv head(0, size);
 
-    Sims_transv<P>* curr = &head;
-    std::unique_ptr<P> new_transv;
+    Transv* curr = &head;
+    std::unique_ptr<Transv> new_transv;
 
     Point begin = 0;
 
     while ((new_transv = internal::build_sims_transv(begin, size, gens))) {
-        begin = new_transv->get_target();
+        begin = new_transv->target();
         curr->set_next(std::move(new_transv));
         curr = curr->next();
     }
