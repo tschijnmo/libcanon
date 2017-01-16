@@ -57,3 +57,29 @@ TEST_F(Partition_test, test_trivial)
     EXPECT_EQ(trivial, Partition(normal));
 }
 
+/** Tests refinement facility.
+ *
+ * In this test case, the refinement facility and other things are tested.
+ */
+
+TEST_F(Partition_test, test_refinement)
+{
+
+    // Swap the first two and the second two points.
+
+    Partition refined(trivial);
+    refined.split_by_key(trivial.get_first(), [](auto point) {
+        if (point == 0 || point == 1) {
+            return 1;
+        } else {
+            return 0;
+        }
+    });
+
+    // First check the correctness of the partition.
+
+    Partition::Normal_form expected_nf{ { 2, 3 }, { 0, 1 } };
+    Partition expected_part(expected_nf);
+    EXPECT_EQ(refined.get_normal_form(), expected_nf);
+    EXPECT_EQ(refined, Partition(expected_nf));
+}
