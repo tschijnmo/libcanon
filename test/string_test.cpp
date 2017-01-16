@@ -5,6 +5,8 @@
  * transversal systems in sims.h, are both tested here.
  */
 
+#include <vector>
+
 #include <gtest/gtest.h>
 
 #include <libcanon/perm.h>
@@ -212,4 +214,34 @@ TEST_F(S3_test, mult_perm)
     // Non-atomic ones.
     test_prod_inv(cyclic | cyclic);
     test_prod_inv(~cyclic);
+}
+
+/** Tests chaining of permutations.
+ *
+ * Here we test the chaining of an indefinite number of permutations.
+ */
+
+TEST_F(S3_test, chain_perm)
+{
+    Simple_perm identity(size);
+
+    // The cyclic generator, order 3.
+    std::vector<const Simple_perm*> cyclics(4, &cyclic);
+    auto c3_res = chain<Simple_perm>(size, cyclics.begin(), cyclics.end() - 1);
+    EXPECT_EQ(c3_res, identity);
+    EXPECT_EQ(c3_res.get_earliest_moved(), size);
+
+    auto c4_res = chain<Simple_perm>(size, cyclics.begin(), cyclics.end());
+    EXPECT_EQ(c4_res, cyclic);
+
+    // The transpose generator, order 2.
+    std::vector<const Simple_perm*> transposes(6, &transpose);
+    auto t5_res
+        = chain<Simple_perm>(size, transposes.begin(), transposes.end() - 1);
+    EXPECT_EQ(t5_res, transpose);
+
+    auto t6_res
+        = chain<Simple_perm>(size, transposes.begin(), transposes.end());
+    EXPECT_EQ(t6_res, identity);
+    EXPECT_EQ(t6_res.get_earliest_moved(), size);
 }
