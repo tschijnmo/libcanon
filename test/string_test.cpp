@@ -245,3 +245,49 @@ TEST_F(S3_test, chain_perm)
     EXPECT_EQ(t6_res, identity);
     EXPECT_EQ(t6_res.get_earliest_moved(), size);
 }
+
+//
+// Tests of the Schreier-Sims algorithm
+// ------------------------------------
+//
+
+/** Tests the Schreier-Sims algorithm.
+ *
+ * Here we test the building of a Sims transversal system by using the
+ * Schreier-Sims algorithm.
+ */
+
+TEST_F(S3_test, schreier_sims)
+{
+    auto sys = build_sims_sys(size, gens);
+
+    // Flatten the transversals out for easy checking.
+    using Transv = Sims_transv<Simple_perm>;
+    std::vector<const Transv*> transvs{};
+    for (Transv* i = sys.get(); i; i = i->next()) {
+        transvs.push_back(i);
+    }
+    ASSERT_EQ(transvs.size(), 2);
+
+    // Examine the first level of transversal system.
+    const Transv& first = *transvs.front();
+    Point target = 0;
+    EXPECT_EQ(first.target(), target);
+    Point expect = 1;
+    for (const auto& i : first) {
+        EXPECT_EQ(i >> target, expect);
+        ++expect;
+    }
+    EXPECT_EQ(expect, 3);
+
+    // Examine the second level.
+    const Transv& second = *transvs.back();
+    target = 1;
+    EXPECT_EQ(second.target(), target);
+    expect = 2;
+    for (const auto& i : second) {
+        EXPECT_EQ(i >> target, expect);
+        ++expect;
+    }
+    EXPECT_EQ(expect, 3);
+}
