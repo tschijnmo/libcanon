@@ -5,7 +5,10 @@
  * for eldag canonicalization.
  */
 
+#include <algorithm>
+#include <memory>
 #include <numeric>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -82,4 +85,64 @@ TEST_F(Partition_test, test_refinement)
     Partition expected_part(expected_nf);
     EXPECT_EQ(refined.get_normal_form(), expected_nf);
     EXPECT_EQ(refined, Partition(expected_nf));
+
+    // Test some simple queries of the partition as a whole.
+
+    EXPECT_FALSE(refined.is_discrete());
+    EXPECT_EQ(refined.size(), size);
+    const auto& pre_imgs = refined.get_pre_imgs();
+    auto perm = refined.make_perm();
+    for (Point i = 0; i < size; ++i) {
+        for (Point j : { pre_imgs[i], perm >> i, refined >> i }) {
+            if (i == 0 || i == 1) {
+                EXPECT_TRUE(j == 2 || j == 3);
+            } else {
+                EXPECT_TRUE(j == 0 || j == 1);
+            }
+        }
+    }
+
+    // Test the looping and point properties.
+
+    // Vector of cells.
+    Point_vec forward_cells(refined.begin(), refined.end());
+    Point_vec backward_cells(refined.rbegin(), refined.rend());
+
+    // Expand the cells into all points.
+    std::vector<std::vector<Point_vec>> cells{};
+
+    for (const auto& i : { forward_cells, backward_cells }) {
+        std::vector<Point_vec> curr{};
+        for (auto j : i) {
+            curr.emplace_back(refined.cell_begin(j), refined.cell_end(j));
+        }
+        ASSERT_EQ(curr.size(), 2);
+
+        for (const auto& j : curr) {
+            ASSERT_EQ(j.size(), 2);
+            // All points in the same cell has the same colour.
+            EXPECT_EQ(refined.get_colour(j[0]), refined.get_colour(j[1]));
+            EXPECT_NE(j[0], j[1]);
+        }
+
+        cells.push_back(std::move(curr));
+    }
+
+    // The first cell should have lower colour for forward iteration.
+
+    for (auto i : cells[0][0]) {
+        for (auto j : cells[0][1]) {
+            EXPECT_NE(i, j);
+            EXPECT_LT(refined.get_colour(i), refined.get_colour(j));
+        }
+    }
+
+    // The opposite for reverse iteration.
+
+    for (auto i : cells[1][0]) {
+        for (auto j : cells[1][1]) {
+            EXPECT_NE(i, j);
+            EXPECT_GT(refined.get_colour(i), refined.get_colour(j));
+        }
+    }
 }
