@@ -108,6 +108,27 @@ public:
     size_t size() const { return static_cast<const T&>(*this).size(); }
 };
 
+/** Tests if two permutations are equal.
+ *
+ * This function is fully generic for all kinds of permutation expressions,
+ * including non-atomic ones.
+ */
+
+template <typename T1, typename T2>
+bool operator==(const Perm_expr<T1>& perm1, const Perm_expr<T2>& perm2)
+{
+    size_t size = perm1.size();
+    if (size != perm2.size() || perm1.acc() != perm2.acc())
+        return false;
+
+    for (size_t i = 0; i < size; ++i) {
+        if (perm1 >> i != perm2 >> i)
+            return false;
+    }
+
+    return true;
+}
+
 /** Atomic permutation type.
  *
  * Here a permutation is stored redundantly by two arrays for both the preimage
