@@ -488,7 +488,7 @@ namespace internal {
                     if (curr_point == target) {
                         tentative->insert(~i);
                     } else {
-                        tentative->insert(~i | *repr);
+                        tentative->insert(~i | *curr_perm);
                     }
                 }
             } // End while looping over orbit.
