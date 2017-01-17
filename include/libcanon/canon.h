@@ -424,7 +424,7 @@ public:
         // complete description of the automorphism group.
 
         if (set_curr()) {
-            auto new_aut = refiner_.create_transv(base_, *curr_coset_);
+            auto new_aut = prepare_transv();
             adapt_transv(*aut, *new_aut);
             auto final_aut
                 = this->add_all_candidates(std::move(new_aut), container);
