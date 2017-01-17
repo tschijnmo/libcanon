@@ -218,7 +218,9 @@ public:
     Exp_path(R& refiner, const Structure& obj, const Coset& coset)
         : refiner_(refiner)
         , obj_(obj)
-        , base_(&coset)
+        , base_(coset)
+        , perm_(nullptr)
+        , form_(nullptr)
     {
         if (refiner.is_leaf(obj, coset)) {
             // For leaf states, we store the permutation and the action result.
@@ -229,7 +231,7 @@ public:
             // For non-leaf states, we store all the refinements and extend a
             // path from one of the children.
 
-            auto children = refiner.refine(coset);
+            auto children = refiner.refine(obj, coset);
             auto child_iter = begin(children);
             auto child_sentinel = end(children);
 
@@ -293,7 +295,7 @@ public:
         } else {
             // For non-leaf nodes.
             auto transv = refiner_.create_transv(base_, *curr_coset_);
-            transv.set_next(curr_exp_path_->prepare_transv());
+            transv->set_next(curr_exp_path_->prepare_transv());
             return transv;
         }
     }
@@ -327,12 +329,12 @@ public:
             //
             // Here care is taken for the undefined evaluation order.
             auto new_inner = curr_exp_path_->add_all_candidates(
-                aut.release_next(), container);
-            aut.set_next(std::move(new_inner));
+                aut->release_next(), container);
+            aut->set_next(std::move(new_inner));
 
             // Remove all identical siblings of the current children.
             const auto& anchor = *curr_coset_;
-            for (const auto& i : aut) {
+            for (const auto& i : *aut) {
                 auto n_erased = children_.erase(refiner_.left_mult(i, anchor));
                 assert(n_erased == 1);
             }
@@ -372,7 +374,7 @@ public:
             return aut;
         }
 
-        aut = create_transv(base_, *curr_coset_);
+        aut = refiner_.create_transv(base_, *curr_coset_);
         aut->set_next(curr_exp_path_->add_all_candidates(container));
 
         // Create experimental paths for all refinement to find all the
@@ -411,7 +413,7 @@ public:
         // complete description of the automorphism group.
 
         if (set_curr()) {
-            auto new_aut = create_transv(base_, *curr_coset_);
+            auto new_aut = refiner_.create_transv(base_, *curr_coset_);
             adapt_transv(*aut, *new_aut);
             auto final_aut
                 = this->add_all_candidates(std::move(new_aut), container);
@@ -475,7 +477,7 @@ private:
     /** Tests if an experimental path node is a leaf state.
      */
 
-    bool is_leaf() const { return perm_; }
+    bool is_leaf() const { return perm_.get() != nullptr; }
 
     //
     // Data fields.
@@ -488,12 +490,12 @@ private:
 
     // For non-leaf nodes
     Children children_;
-    Coset* curr_coset_;
+    const Coset* curr_coset_;
     Exp_path* curr_exp_path_;
 
     // For leaf nodes.
+    std::unique_ptr<Act_res> form_;
     std::unique_ptr<Perm> perm_;
-    std::unique_ptr<Structure> form_;
 };
 
 /** Adds all candidates from the successive refinement of the given coset.

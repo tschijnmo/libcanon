@@ -708,7 +708,7 @@ template <typename T> std::unique_ptr<T> min_transv(std::unique_ptr<T> transv)
     T* curr_end = nullptr;
 
     while (transv) {
-        auto next = transv.release_next();
+        auto next = transv->release_next();
 
         if (begin(*transv) != end(*transv)) {
             if (curr_end) {

@@ -51,7 +51,7 @@ public:
 
     Sims_coset(const Sims_coset& prev, Point selected)
         : prev_(&prev)
-        , curr_(prev->next())
+        , curr_(prev.next())
         , selected_(selected)
         , perm_(curr_->get_repr(selected))
         , next_(curr_->next())
@@ -59,7 +59,7 @@ public:
         // We either have a coset representative or we have the implicit
         // identity.
 
-        assert(perm_ || selected_ == curr_->target);
+        assert(perm_ || selected_ == curr_->target());
     }
 
     /** Constructs a root coset for the group given as a Sims transversal.
@@ -84,7 +84,7 @@ public:
     {
         for (const Sims_coset* i = &coset; !i->is_root(); i = i->prev_) {
             if (i->perm_) {
-                point = *i->perm >> point;
+                point = *i->perm_ >> point;
             } else {
                 // Else we assume we chose identity.
                 assert(i->selected() == i->curr_->target());
@@ -105,7 +105,7 @@ public:
             perms.push_back(i->perm_); // The permutation can be null.
         }
 
-        return chain(size(), perms.crbegin(), perms.crend());
+        return chain<P>(size(), perms.crbegin(), perms.crend());
     }
 
     /** Tests if two cosets are equal.
@@ -114,7 +114,7 @@ public:
      * assume that all the rest matches.
      */
 
-    bool operator==(const Sims_coset& other)
+    bool operator==(const Sims_coset& other) const
     {
         assert(curr_ == other.curr_);
         return this->selected_ == other.selected_;
@@ -232,7 +232,7 @@ public:
         size_t hash = 0;
         for (const auto& i : *this) {
             combine_hash(
-                hash, static_cast<std::hash<Alphabet_of<S>>&>(*this)(i));
+                hash, static_cast<const std::hash<Alphabet_of<S>>&>(*this)(i));
         }
 
         return hash;
@@ -328,7 +328,7 @@ public:
 
     P get_a_perm(const Coset& coset) const
     {
-        assert(coset.is_leaf());
+        // It is hard to assert leaf here.
         return coset.get_a_perm();
     }
 
@@ -362,12 +362,12 @@ public:
     /** Creates a transversal system.
      */
 
-    auto get_transv(const Coset& upper, const Coset& lower) const
+    auto create_transv(const Coset& upper, const Coset& lower) const
     {
         size_t size = upper.size();
         assert(lower.size() == size);
 
-        return std::make_unique<Sims_transv<P>>(size, lower >> lower.target());
+        return std::make_unique<Sims_transv<P>>(size, lower >> lower.selected());
     }
 };
 
@@ -394,12 +394,11 @@ std::pair<P, std::unique_ptr<Sims_transv<P>>> canon_string(
 
     auto aut = add_all_candidates(refiner, input, whole_group, candidates);
 
-    const auto& canon_form
-        = std::min_element(candidates.begin(), candidates.end(),
-            [](const auto& a, const auto& b) { return a.first < b.first; });
+    auto canon_form = std::min_element(candidates.begin(), candidates.end(),
+        [](const auto& a, const auto& b) { return a.first < b.first; });
 
-    aut->conj(canon_form.second);
-    return { std::move(canon_form.second), min_transv(std::move(aut)) };
+    aut->conj(canon_form->second);
+    return { std::move(canon_form->second), min_transv(std::move(aut)) };
 }
 
 } // End namespace libcanon
