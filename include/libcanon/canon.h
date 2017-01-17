@@ -220,12 +220,14 @@ public:
     {
         if (refiner.is_leaf(obj, coset)) {
             // For leaf states, we store the permutation and the action result.
+            is_leaf_ = true;
 
             perm_ = std::make_unique<Perm>(refiner_.get_a_perm(coset));
             form_ = std::make_unique<Act_res>(refiner_.act(*perm_, obj));
         } else {
             // For non-leaf states, we store all the refinements and extend a
             // path from one of the children.
+            is_leaf_ = false;
 
             auto children = refiner.refine(obj, coset);
             auto child_iter = begin(children);
@@ -241,6 +243,9 @@ public:
 
             set_curr();
         }
+
+        // We must be either a leaf node or a non-leaf node.
+        assert(perm_ || curr_exp_path_);
     }
 
     //
@@ -379,10 +384,16 @@ public:
 
         // Loop over all the experimental path by iterator for unordered_map
         // for faster removal without hashing and equality comparison involved.
+        // The price to pay is the duplication of ++child_it.
 
         auto child_it = children_.begin();
         while (child_it != children_.end()) {
             Exp_path* curr = child_it->second.get();
+            if (curr == curr_exp_path_) {
+                // The experimental path has been exhausted.
+                ++child_it;
+                continue;
+            }
 
             const auto& leaf = curr->get_a_leaf();
 
@@ -393,10 +404,10 @@ public:
                 continue;
             } else {
                 // When we find an identical sibling.
-                if (curr != curr_exp_path_) {
-                    // Skip identity permutation.
-                    aut->insert(existing->second | ~leaf.perm());
-                }
+                //
+                // Here we cannot possibly be at the initial experimental path,
+                // so the following permutation cannot be identity.
+                aut->insert(existing->second | ~leaf.perm());
                 auto to_remove = child_it; // Make a copy of the iterator.
                 ++child_it;
                 children_.erase(to_remove);
@@ -443,6 +454,7 @@ private:
         curr_coset_ = &begin->first;
         set_path(*begin);
         curr_exp_path_ = begin->second.get();
+        assert(curr_exp_path_);
 
         return true;
     }
@@ -473,7 +485,7 @@ private:
     /** Tests if an experimental path node is a leaf state.
      */
 
-    bool is_leaf() const { return perm_.get() != nullptr; }
+    bool is_leaf() const { return is_leaf_; }
 
     //
     // Data fields.
@@ -483,6 +495,9 @@ private:
     R& refiner_;
     const Structure& obj_;
     const Coset& base_;
+
+    // Leaf node label.
+    bool is_leaf_;
 
     // For non-leaf nodes
     Children children_;
