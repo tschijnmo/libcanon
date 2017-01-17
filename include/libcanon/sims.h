@@ -11,6 +11,7 @@
 #define LIBCANON_SIMS_H
 
 #include <cassert>
+#include <iterator>
 #include <memory>
 #include <vector>
 
@@ -212,6 +213,33 @@ public:
 
     class Sims_transv_it {
     public:
+        /** The reference type.
+         */
+
+        using reference = const P&;
+
+        /** The value type.
+         */
+
+        using value_type = P;
+
+        /** The iterator category.
+         */
+
+        using iterator_category = std::input_iterator_tag;
+
+        /** The difference type.
+         */
+        using difference_type = ptrdiff_t;
+
+        /** The pointer type.
+         *
+         * Note that although we have the type here, the -> operator is not yet
+         * defined.
+         */
+
+        using pointer = const P*;
+
         /** Constructs an iterator.
          */
 
