@@ -321,6 +321,8 @@ public:
         if (is_leaf()) {
             // Both the form and the permutation can be safely moved since
             // they are not going to be used after this method is called.
+            assert(form_);
+            assert(perm_);
             container.emplace(std::move(*form_), std::move(*perm_));
             return nullptr;
         }
@@ -371,12 +373,19 @@ public:
         std::unique_ptr<Transv> aut{}; // Named return value.
 
         if (is_leaf()) {
+            assert(form_);
+            assert(perm_);
             container.emplace(std::move(*form_), std::move(*perm_));
             return aut;
         }
 
         aut = refiner_.create_transv(base_, *curr_coset_);
         aut->set_next(curr_exp_path_->add_all_candidates(container));
+
+        // Remove the current path, it is no longer of any use.
+        children_.erase(*curr_coset_);
+        curr_coset_ = nullptr;  // For safety.
+        curr_exp_path_ = nullptr;
 
         // Create experimental paths for all refinement to find all the
         // identical siblings.
@@ -389,11 +398,6 @@ public:
         auto child_it = children_.begin();
         while (child_it != children_.end()) {
             Exp_path* curr = child_it->second.get();
-            if (curr == curr_exp_path_) {
-                // The experimental path has been exhausted.
-                ++child_it;
-                continue;
-            }
 
             const auto& leaf = curr->get_a_leaf();
 
