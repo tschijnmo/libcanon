@@ -5,6 +5,7 @@
  * transversal systems in sims.h, are both tested here.
  */
 
+#include <algorithm>
 #include <memory>
 #include <vector>
 
@@ -333,4 +334,54 @@ TEST_F(S3_test, sims_adapt)
         ++expect;
     }
     EXPECT_EQ(expect, target);
+}
+
+//
+// Test of a canonicalization of strings
+// -------------------------------------
+//
+
+/** Tests the canonicalization of a non-symmetrical string.
+ *
+ * Here the string to be canonicalized does not really contain any non-trivial
+ * automorphism.  This is more of a test for the refinement function for
+ * strings.
+ */
+
+TEST_F(S3_test, non_symm_string)
+{
+    using Structure = std::vector<char>;
+
+    // The original form of the string.  The string should always be permuted
+    // back to this form.
+    Structure orig{ 'a', 'b', 'c', 'x', 'y', 'z' };
+
+    // The current permutation of the first three point.
+    std::vector<size_t> curr_perm{ 0, 1, 2 };
+
+    // The isomorphism group.
+    auto iso = build_sims_sys(size, gens);
+
+    // Loop over all forms of the structure.
+    do {
+
+        // Assemble the input structure.
+        Structure input_form(size);
+        for (size_t i = 0; i < 3; ++i) {
+            input_form[i] = orig[curr_perm[i]];
+            input_form[i + 3] = orig[curr_perm[i] + 3];
+        }
+
+        auto res = canon_string(input_form, *iso);
+
+        const auto& canon_perm = res.first;
+        const auto& aut = res.second;
+
+        auto canon_form = act_string<Structure>(canon_perm, input_form);
+        EXPECT_EQ(canon_form, orig);
+
+        // No automorphism for this string.
+        EXPECT_FALSE(aut);
+
+    } while (std::next_permutation(curr_perm.begin(), curr_perm.end()));
 }
