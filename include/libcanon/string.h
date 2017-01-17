@@ -410,7 +410,8 @@ public:
 
     Coset left_mult(const P& perm, const Coset& coset) const
     {
-        return { *coset.prev(), perm >> coset.selected() };
+        const auto& prev = *coset.prev();
+        return { prev, prev << (perm >> (prev >> coset.selected())) };
     }
 
     /** Creates a transversal system.
