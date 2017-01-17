@@ -37,6 +37,10 @@ using namespace libcanon;
 
 class S3_test : public ::testing::Test {
 public:
+    //
+    // Data and setting up
+    //
+
     /** Sets up the test fixture.
      */
 
@@ -74,6 +78,29 @@ public:
      */
 
     std::vector<size_t> corresp;
+
+    //
+    // Utility methods
+    //
+
+    /** Acts a permutation on the first half on the whole string.
+     *
+     * The second half is assumed to follow the first half.
+     */
+
+    template <typename T>
+    T act_by_win(const std::vector<size_t>& perm_win, const T& orig)
+    {
+        size_t half_size = size / 2;
+
+        T result(size);
+        for (size_t i = 0; i < half_size; ++i) {
+            result[i] = orig[perm_win[i]];
+            result[i + half_size] = orig[perm_win[i] + half_size];
+        }
+
+        return result;
+    }
 };
 
 //
@@ -366,11 +393,7 @@ TEST_F(S3_test, non_symm_string)
     do {
 
         // Assemble the input structure.
-        Structure input_form(size);
-        for (size_t i = 0; i < 3; ++i) {
-            input_form[i] = orig[curr_perm[i]];
-            input_form[i + 3] = orig[curr_perm[i] + 3];
-        }
+        auto input_form = act_by_win(curr_perm, orig);
 
         auto res = canon_string(input_form, *iso);
 
