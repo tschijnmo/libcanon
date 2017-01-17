@@ -408,3 +408,58 @@ TEST_F(S3_test, non_symm_string)
 
     } while (std::next_permutation(curr_perm.begin(), curr_perm.end()));
 }
+
+/** Tests the canonicalization of a string with automorphism.
+ *
+ * Here the string to be canonicalized contains some automorphism.   This thus
+ * checks the discovery of automorphisms.
+ */
+
+TEST_F(S3_test, symm_string)
+{
+    using Structure = std::vector<char>;
+
+    Structure orig{ 'a', 'a', 'a', 'x', 'y', 'y' };
+
+    std::vector<size_t> curr_perm{ 0, 1, 2 };
+
+    // The isomorphism group.
+    auto iso = build_sims_sys(size, gens);
+
+    // Loop over all forms of the structure.
+    do {
+
+        // Assemble the input structure.
+        auto input_form = act_by_win(curr_perm, orig);
+
+        auto res = canon_string(input_form, *iso);
+
+        const auto& canon_perm = res.first;
+        const auto& aut = res.second;
+
+        auto canon_form = act_string<Structure>(canon_perm, input_form);
+        EXPECT_EQ(canon_form, orig);
+
+        EXPECT_TRUE(aut);
+        EXPECT_FALSE(aut->next());
+
+        Point target = aut->target();
+        auto aut_it = begin(*aut);
+        auto aut_sentin = end(*aut);
+
+        // Note that we have the automorphism of the canonical rather than the
+        // original form for string canonicalization.
+
+        if (target == 1) {
+            EXPECT_EQ(*aut_it >> target, 2);
+        } else if (target == 2) {
+            EXPECT_EQ(*aut_it >> target, 1);
+        } else {
+            EXPECT_TRUE(false);
+        }
+
+        ++aut_it;
+        EXPECT_EQ(aut_it, aut_sentin);
+
+    } while (std::next_permutation(curr_perm.begin(), curr_perm.end()));
+}
