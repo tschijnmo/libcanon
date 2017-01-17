@@ -221,6 +221,18 @@ template <typename S>
 class Sims_act_res : public std::vector<Alphabet_of<S>>,
                      private std::hash<Alphabet_of<S>> {
 public:
+    /** Constructs an empty result.
+     */
+
+    Sims_act_res(size_t size)
+        : std::vector<Alphabet_of<S>>(size)
+        , std::hash<Alphabet_of<S>>()
+    {
+    }
+
+    /** Computes the hash of the result.
+     */
+
     size_t hash() const
     {
         size_t hash = 0;
@@ -232,6 +244,26 @@ public:
         return hash;
     }
 };
+
+/** Acts a permutation on a string combinatorial object.
+ *
+ * Here the result is not required to be the same as the given object.  Here
+ * the result type is required to be constructible from a given size, and its
+ * indexed result is assignable.
+ */
+
+template <typename R, typename P, typename S>
+R act_string(const P& perm, const S& orig)
+{
+    size_t size = perm.size();
+    R result(size);
+
+    for (size_t i = 0; i < size; ++i) {
+        result[i] = orig[perm >> i];
+    }
+
+    return result;
+}
 
 /** Container for the candidates
  *
@@ -334,15 +366,7 @@ public:
 
     Sims_act_res<S> act(const P& perm, const S& obj) const
     {
-        size_t size = perm.size();
-        Sims_act_res<S> result{};
-        result.reserve(size);
-
-        for (size_t i = 0; i < size; ++i) {
-            result.push_back(obj[perm >> i]);
-        }
-
-        return result;
+        return act_string<Sims_act_res<S>>(perm, obj);
     }
 
     /** Left multiplies a coset by a permutation.
@@ -361,7 +385,8 @@ public:
         size_t size = upper.size();
         assert(lower.size() == size);
 
-        return std::make_unique<Sims_transv<P>>(size, lower >> lower.selected());
+        return std::make_unique<Sims_transv<P>>(
+            size, lower >> lower.selected());
     }
 };
 
@@ -391,8 +416,9 @@ std::pair<P, std::unique_ptr<Sims_transv<P>>> canon_string(
     auto canon_form = std::min_element(candidates.begin(), candidates.end(),
         [](const auto& a, const auto& b) { return a.first < b.first; });
 
-    aut->conj(canon_form->second);
-    return { std::move(canon_form->second), min_transv(std::move(aut)) };
+    P& canon_perm = canon_form->second;
+    aut->conj(canon_perm);
+    return { std::move(canon_perm), min_transv(std::move(aut)) };
 }
 
 } // End namespace libcanon
