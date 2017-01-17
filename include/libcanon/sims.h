@@ -199,6 +199,7 @@ private:
 
     std::unique_ptr<Sims_transv> next_;
 
+public:
     //
     // Iteration over a transversal.
     //
@@ -280,7 +281,6 @@ private:
         }
     };
 
-public:
     friend auto begin(const Sims_transv& container)
     {
         return Sims_transv_it(0, container);
