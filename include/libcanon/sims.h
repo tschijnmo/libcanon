@@ -241,7 +241,7 @@ private:
         /** Compares iterators for equality.
          */
 
-        bool operator==(const Sims_transv_it& sentinel)
+        bool operator==(const Sims_transv_it& sentinel) const
         {
             return (curr_ == sentinel.curr_);
         }
@@ -249,7 +249,7 @@ private:
         /** Compares for inequality.
          */
 
-        bool operator!=(const Sims_transv_it& sentinel)
+        bool operator!=(const Sims_transv_it& sentinel) const
         {
             return (curr_ != sentinel.curr_);
         }
