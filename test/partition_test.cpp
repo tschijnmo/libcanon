@@ -21,12 +21,12 @@ using namespace libcanon;
  * Here we simply start with a trivial partition.
  */
 
-class Partition_test : public ::testing::Test {
+class Test_partition : public ::testing::Test {
 public:
     /** Sets up the test fixture.
      */
 
-    Partition_test()
+    Test_partition()
         : size(4)
         , trivial(size)
     {
@@ -49,7 +49,7 @@ public:
  * to be tested on non-trivial partitions.
  */
 
-TEST_F(Partition_test, test_trivial)
+TEST_F(Test_partition, can_be_trivially_constructed)
 {
     Point_vec trivial_vec(size);
     std::iota(trivial_vec.begin(), trivial_vec.end(), 0);
@@ -65,7 +65,7 @@ TEST_F(Partition_test, test_trivial)
  * In this test case, the refinement facility and other things are tested.
  */
 
-TEST_F(Partition_test, test_refinement)
+TEST_F(Test_partition, can_be_refined)
 {
 
     // Swap the first two and the second two points.
@@ -154,7 +154,7 @@ TEST_F(Partition_test, test_refinement)
  * check the correctness of individualization.
  */
 
-TEST_F(Partition_test, test_individualization)
+TEST_F(Test_partition, can_be_individualized)
 {
     for (size_t i = 0; i < size; ++i) {
         Partition indived(trivial, i);
