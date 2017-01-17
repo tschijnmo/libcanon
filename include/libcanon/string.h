@@ -453,8 +453,12 @@ std::pair<P, std::unique_ptr<Sims_transv<P>>> canon_string(
         [](const auto& a, const auto& b) { return a.first < b.first; });
 
     P& canon_perm = canon_form->second;
+
+    // Conjugate and minimize the automorphism group.
     aut->conj(canon_perm);
-    return { std::move(canon_perm), min_transv(std::move(aut)) };
+    auto min_aut = min_transv(std::move(aut));
+
+    return { std::move(canon_perm), std::move(min_aut) };
 }
 
 } // End namespace libcanon
