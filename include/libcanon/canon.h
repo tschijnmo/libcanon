@@ -90,7 +90,8 @@ template <typename R> using Structure_of = typename R::Structure;
  */
 
 template <typename R>
-using Perm_of = std::result_of_t<decltype (&R::get_a_perm)(Coset_of<R>)>;
+using Perm_of = std::decay_t<decltype(
+    std::declval<R>().get_a_perm(std::declval<Coset_of<R>>()))>;
 
 /** The result of acting a permutation on a structure.
  *
@@ -101,8 +102,8 @@ using Perm_of = std::result_of_t<decltype (&R::get_a_perm)(Coset_of<R>)>;
  */
 
 template <typename R>
-using Act_res_of
-    = std::result_of_t<decltype (&R::act)(Perm_of<R>, Structure_of<R>)>;
+using Act_res_of = std::decay_t<decltype(std::declval<R>().act(
+    std::declval<Perm_of<R>>(), std::declval<Structure_of<R>>()))>;
 
 /** The transversal type used by a refiner.
  *
@@ -110,14 +111,9 @@ using Act_res_of
  * and returns a unique pointer to something.
  */
 
-// clang-format off
-
 template <typename R>
-using Transv_of = Ensure_unique_ptr_t<std::result_of_t<
-    decltype(&R::create_transv)(Coset_of<R>, Coset_of<R>)
->>;
-
-// clang-format on
+using Transv_of = Ensure_unique_ptr_t<decltype(std::declval<R>().create_transv(
+    std::declval<Coset_of<R>>(), std::declval<Coset_of<R>>()))>;
 
 //
 // The refiner protocol.

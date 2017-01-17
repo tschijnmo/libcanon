@@ -199,8 +199,6 @@ private:
     const Sims_transv<P>* next_;
 };
 
-// clang-format off
-
 /** The type for the alphabet of a string combinatorial structure.
  *
  * The type is set to the type obtained by indexing the structure by integral
@@ -210,11 +208,7 @@ private:
  */
 
 template <typename S>
-using Alphabet_of = std::remove_reference_t<std::result_of<
-    decltype(&S::operator[])(size_t)
->>;
-
-// clang-format on
+using Alphabet_of = std::decay_t<decltype(std::declval<S>()[(size_t)0])>;
 
 /** The result of acting a permutation on a string combinatorial object.
  *
