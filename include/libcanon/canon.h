@@ -411,7 +411,12 @@ public:
                 //
                 // Here we cannot possibly be at the initial experimental path,
                 // so the following permutation cannot be identity.
-                aut->insert(existing->second | ~leaf.perm());
+                //
+                // Also here, we need an automorphism that gives the coset of
+                // the experimental path when it is left-multiplied to the
+                // anchor.
+                auto inserted = aut->insert(leaf.perm() | ~existing->second);
+                assert(inserted);
                 auto to_remove = child_it; // Make a copy of the iterator.
                 ++child_it;
                 children_.erase(to_remove);
