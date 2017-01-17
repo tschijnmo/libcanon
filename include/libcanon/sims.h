@@ -134,6 +134,7 @@ public:
         : target_(target)
         , transv_(size)
     {
+        assert(target >= 0 && target < size);
     }
 
     /** Gets the target of the Sims transversal.

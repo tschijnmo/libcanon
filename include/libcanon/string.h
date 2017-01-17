@@ -386,7 +386,7 @@ public:
         assert(lower.size() == size);
 
         return std::make_unique<Sims_transv<P>>(
-            size, lower >> lower.selected());
+            lower >> lower.selected(), size);
     }
 };
 
