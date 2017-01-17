@@ -302,6 +302,38 @@ public:
 
     class Cell_it {
     public:
+        /** The reference type.
+         *
+         * This iterator generates the points as R-value directly.
+         */
+
+        using reference = Point;
+
+        /** The value type.
+         */
+
+        using value_type = Point;
+
+        /** The iterator category.
+         */
+
+        using iterator_category = std::input_iterator_tag;
+
+        /** The pointer type.
+         *
+         * Here we temporarily do not implement the -> operator.  It can be
+         * added when portability problem occurs.
+         */
+
+        using pointer = void;
+
+        /** Different type.
+         *
+         * Here we just use the major signed int type.
+         */
+
+        using difference_type = ptrdiff_t;
+
         /** Constructs a cell iterator.
          */
 
@@ -518,34 +550,5 @@ private:
 };
 
 } // End namespace libcanon
-
-//
-// Std injection for cell iterators.
-//
-
-namespace std {
-
-/** Traits for the cell iterator.
- */
-
-template <> struct iterator_traits<libcanon::Partition::Cell_it> {
-    /** The reference type.
-     *
-     * This iterator generates the points as R-value directly.
-     */
-
-    using reference = libcanon::Point;
-
-    /** The value type.
-     */
-
-    using value_type = libcanon::Point;
-
-    /** The iterator category.
-     */
-
-    using iterator_category = std::input_iterator_tag;
-};
-} // End namespace std
 
 #endif
