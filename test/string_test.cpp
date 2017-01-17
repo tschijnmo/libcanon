@@ -35,7 +35,7 @@ using namespace libcanon;
  *
  */
 
-class S3_test : public ::testing::Test {
+class Test_S3 : public ::testing::Test {
 public:
     //
     // Data and setting up
@@ -44,7 +44,7 @@ public:
     /** Sets up the test fixture.
      */
 
-    S3_test()
+    Test_S3()
         : size(6)
         , cyclic({ 1, 2, 0, 4, 5, 3 })
         , transpose(std::vector<size_t>({ 1, 0, 2, 4, 3, 5 }),
@@ -111,7 +111,7 @@ public:
 /** Tests of the basic methods of the perm class.
  */
 
-TEST_F(S3_test, perm_methods)
+TEST_F(Test_S3, has_basic_perm_methods)
 {
 
     // Modular arithmetic of the point labels.
@@ -170,7 +170,7 @@ TEST_F(S3_test, perm_methods)
  * Here we use the involutory transposition for the testing.
  */
 
-TEST_F(S3_test, inv_perm)
+TEST_F(Test_S3, can_be_inverted)
 {
 
     // The unevaluated inversion.
@@ -203,7 +203,7 @@ TEST_F(S3_test, inv_perm)
  * also thoroughly tested.
  */
 
-TEST_F(S3_test, mult_perm)
+TEST_F(Test_S3, can_be_multiplied)
 {
     // Identity, for convenience.
     Simple_perm identity(size);
@@ -250,7 +250,7 @@ TEST_F(S3_test, mult_perm)
  * Here we test the chaining of an indefinite number of permutations.
  */
 
-TEST_F(S3_test, chain_perm)
+TEST_F(Test_S3, can_be_chained)
 {
     Simple_perm identity(size);
 
@@ -286,7 +286,7 @@ TEST_F(S3_test, chain_perm)
  * Schreier-Sims algorithm.
  */
 
-TEST_F(S3_test, schreier_sims)
+TEST_F(Test_S3, can_be_formed_into_sims_system)
 {
     auto sys = build_sims_sys(size, gens);
 
@@ -328,7 +328,7 @@ TEST_F(S3_test, schreier_sims)
  * chain.
  */
 
-TEST_F(S3_test, sims_adapt)
+TEST_F(Test_S3, can_be_adapted_to_another_subgroup_chain)
 {
     using Transv = Sims_transv<Simple_perm>;
 
@@ -375,7 +375,7 @@ TEST_F(S3_test, sims_adapt)
  * strings.
  */
 
-TEST_F(S3_test, non_symm_string)
+TEST_F(Test_S3, canonicalizes_non_symmetric_string)
 {
     using Structure = std::vector<char>;
 
@@ -415,7 +415,7 @@ TEST_F(S3_test, non_symm_string)
  * checks the discovery of automorphisms.
  */
 
-TEST_F(S3_test, symm_string)
+TEST_F(Test_S3, canonicalizes_symmetric_string)
 {
     using Structure = std::vector<char>;
 
