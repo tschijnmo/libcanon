@@ -166,7 +166,7 @@ public:
             auto& repr = transv_[i];
             if (repr) {
                 auto new_perm = std::make_unique<P>(~perm | *repr | perm);
-                Point new_label = *new_perm >> target_;
+                Point new_label = *new_perm >> new_target;
 
                 // new_perm is guaranteed to be non-identity.
                 new_transv[new_label] = std::move(new_perm);
@@ -174,6 +174,7 @@ public:
         }
 
         transv_.swap(new_transv);
+        target_ = new_target;
         if (next_)
             next_->conj(perm);
     }
@@ -185,7 +186,7 @@ private:
      * target.
      */
 
-    const Point target_;
+    Point target_;
 
     using Transv_container = std::vector<std::unique_ptr<P>>;
 
