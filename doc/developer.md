@@ -27,6 +27,9 @@ Here we have a few conventions for developing in `libcanon`.
 5. Parenthesis initialization is preferred over brace initialization, which is
    only used when it is necessary.
 
+6. The code base should be compatible with both G++ later than 6.3.0 and
+   clang++ later than 3.8.
+
 [Core]: https://github.com/isocpp/CppCoreGuidelines
 [WebKit]: https://webkit.org/code-style-guidelines/
 [PPP]: http://www.stroustrup.com/Programming/PPP-style-rev3.pdf
