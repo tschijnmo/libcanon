@@ -94,16 +94,25 @@ public:
         return point;
     }
 
+    /** Gets the image of a point by a permutation in the coset.
+     */
+
+    friend Point operator<<(const Sims_coset& coset, Point point)
+    {
+        auto perms = coset.gather_perms();
+        for (auto i = perms.crbegin(); i != perms.crend(); ++i) {
+            point = **i << point;
+        }
+
+        return point;
+    }
+
     /** Gets a permutation in the coset.
      */
 
     P get_a_perm() const
     {
-        std::vector<const P*> perms{};
-
-        for (const Sims_coset* i = this; !i->is_root(); i = i->prev_) {
-            perms.push_back(i->perm_); // The permutation can be null.
-        }
+        auto perms = gather_perms();
 
         return chain<P>(size(), perms.crbegin(), perms.crend());
     }
@@ -171,6 +180,33 @@ public:
     bool is_root() const { return !curr_; }
 
 private:
+    //
+    // Utility methods
+    //
+
+    /** Gather all the permutation steps.
+     *
+     * The result will be a vector of points, with the last entry being the
+     * first permutation.  Note that null values indicating implicit identity
+     * will not be added.
+     */
+
+    std::vector<const P*> gather_perms() const
+    {
+        std::vector<const P*> perms{};
+
+        for (const Sims_coset* i = this; !i->is_root(); i = i->prev_) {
+            if (i->perm_)
+                perms.push_back(i->perm_);
+        }
+
+        return perms;
+    }
+
+    //
+    // Data fields
+    //
+
     /** Pointer to the previous level of coset, nullptr for first level.
      */
 
