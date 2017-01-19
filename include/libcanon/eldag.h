@@ -808,19 +808,19 @@ private:
             // refine due to the special semantics of looping over cells in a
             // partition.
 
-            std::for_each(
-                partition_.rbegin(), partition_.rend(), [&](auto splittee) {
-                    for (auto splitter : partition_) {
+            for (auto splittee_i = partition_.rbegin();
+                 splittee_i != partition_.rend(); ++splittee_i) {
+                Point splittee = *splittee_i;
+                for (auto splitter : partition_) {
 
-                        update_conns4cell(
-                            conns, eldag, orbits, splittee, splitter);
+                    update_conns4cell(conns, eldag, orbits, splittee, splitter);
 
-                        split |= partition_.split_by_key(
-                            splittee, [&](auto point) -> const Conn& {
-                                return conns[point];
-                            });
-                    }
-                });
+                    split |= partition_.split_by_key(
+                        splittee, [&](auto point) -> const Conn& {
+                            return conns[point];
+                        });
+                }
+            }
 
             if (split) {
                 continue;
