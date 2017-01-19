@@ -384,7 +384,7 @@ public:
 
         // Remove the current path, it is no longer of any use.
         children_.erase(*curr_coset_);
-        curr_coset_ = nullptr;  // For safety.
+        curr_coset_ = nullptr; // For safety.
         curr_exp_path_ = nullptr;
 
         // Create experimental paths for all refinement to find all the
