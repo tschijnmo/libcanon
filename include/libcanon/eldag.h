@@ -132,6 +132,25 @@ struct Eldag {
         }
         return seed;
     }
+
+    /** Compares two eldags for equality.
+     */
+
+    bool operator==(const Eldag& other) const
+    {
+        return ia == other.ia && edges == other.edges;
+    }
+
+    /** Compares two eldges lexicographically.
+     *
+     * This comparison does not have any actual physical meanings.  However, it
+     * does constitute a total order on the set of all eldags.
+     */
+
+    bool operator<(const Eldag& other) const
+    {
+        return ia < other.ia || (ia == other.ia && edges < other.edges);
+    }
 };
 
 /** The data type to given symmetries for the nodes in an Eldag.
