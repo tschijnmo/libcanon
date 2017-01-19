@@ -413,15 +413,19 @@ public:
 
     bool is_leaf(const Eldag& eldag) const { return partition_.is_discrete(); }
 
+    /** Gets a perm from the coset.
      *
-     * In addition to testing, most importantly, the Weisfeiler-Lehman
-     * refinement will be performed here.
+     * This method can only be called on leaves.  And it will *move* the
+     * information about the permutation into the result.
      */
 
-    bool is_leaf()
+    Eldag_perm<P> get_a_perm() const
     {
-        refine(); // Core work.
-        return partition_.is_discrete();
+
+        // Here we can skip some unnecessary copy by having the refined
+        // permutations and partitions as mutable.
+
+        return { std::move(refined_perms_), std::move(partition_) };
     }
 
     /** Gets the point individualized during its construction.
@@ -798,10 +802,12 @@ private:
 
     /** The partition of graph nodes.
      *
-     * It can be coarse initially, and then refined.
+     * It will be refined in the initialization.  It is set to be mutable here
+     * so that the constant method for getting a permutation can move its
+     * content out without copying.
      */
 
-    Partition partition_;
+    mutable Partition partition_;
 
     /** The current permutations applied to the nodes.
      */
@@ -814,9 +820,12 @@ private:
     Node_symms<P> symms_;
 
     /** The permutation on each node after refinement.
+     *
+     * It is set to be mutable here so that the constant method for getting a
+     * permutation can extract its content out.
      */
 
-    Node_Perms<P> refined_perms_;
+    mutable Node_perms<P> refined_perms_;
 
     /** Refined symmetries for each node.
      */
