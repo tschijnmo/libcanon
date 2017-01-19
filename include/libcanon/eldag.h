@@ -221,20 +221,16 @@ Eldag act_eldag(const G& gl_perm, const L& perms, const Eldag& eldag)
     return res;
 }
 
-namespace internal {
+/** Data type for owned references to node symmetries.
+ */
 
-    /** Data type for owned references to symmetries.
-     */
+template <typename P>
+using Owned_node_symms = std::vector<std::unique_ptr<Sims_transv<P>>>;
 
-    template <typename P>
-    using Owned_symms = std::vector<std::unique_ptr<Sims_transv<P>>>;
+/** Data type for borrowed references to node permutations.
+ */
 
-    /** Data type for borrowed references to permutations.
-     */
-
-    template <typename P> using Borrowed_perms = std::vector<const P*>;
-
-} // End namespace internal
+template <typename P> using Borrowed_node_perms = std::vector<const P*>;
 
 /** Data type for a permutation on an Eldag.
  *
@@ -304,9 +300,9 @@ template <typename P> struct Eldag_perm {
      * The returned vector will have borrowed reference for the permutations.
      */
 
-    internal::Borrowed_perms<P> get_perms() const
+    Borrowed_node_perms<P> get_perms() const
     {
-        internal::Borrowed_perms<P> res{};
+        Borrowed_node_perms<P> res{};
 
         for (const auto& i : perms) {
             res.push_back(i.get());
@@ -1014,7 +1010,7 @@ private:
     /** The current permutations applied to the nodes.
      */
 
-    internal::Borrowed_perms<P> perms_;
+    Borrowed_node_perms<P> perms_;
 
     /** The current symmetries for each of the nodes.
      */
@@ -1032,7 +1028,7 @@ private:
     /** Refined symmetries for each node.
      */
 
-    internal::Owned_symms<P> refined_symms_;
+    Owned_node_symms<P> refined_symms_;
 
     /**
      * The point that is individualized in the construction of this coset.
