@@ -26,4 +26,5 @@ endfunction()
 
 add_simple_test(string_test)
 add_simple_test(partition_test)
+add_simple_test(eldag_test)
 
