@@ -698,7 +698,10 @@ private:
 
         bool operator<(const Detailed_edges& other) const
         {
-            return this->size() > other.size() || *this < other;
+            using Base = const std::vector<Detailed_edge>&;
+
+            return this->size() > other.size()
+                || static_cast<Base>(*this) < static_cast<Base>(other);
         }
     };
 
