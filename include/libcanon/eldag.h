@@ -371,8 +371,8 @@ public:
         : partition_(std::forward<T>(init_part))
         , symms_(init_symms)
         , perms_(init_part.size(), nullptr)
-        , refined_symms_()
-        , refined_perms_()
+        , refined_symms_(init_part.size())
+        , refined_perms_(init_part.size())
         , individualized_(init_part.size())
     {
         assert(init_part.size() == init_symms.size());
@@ -390,8 +390,8 @@ public:
         , partition_(base.partition_, point)
         , symms_(base.symms_)
         , perms_(base.perms_)
-        , refined_perms_()
-        , refined_symms_()
+        , refined_perms_(eldag.size())
+        , refined_symms_(eldag.size())
     {
         refine(eldag);
     }
@@ -643,8 +643,25 @@ public:
 
         // Here we can skip some unnecessary copy by having the refined
         // permutations and partitions as mutable.
+        //
 
-        return { std::move(refined_perms_), std::move(partition_) };
+        Node_perms<P> node_perms(size());
+
+        for (size_t i = 0; i < size(); ++i) {
+            if (!perms_[i]) {
+                // When we have never applied a permutation on the node.
+                continue;
+            } else if (refined_perms_[i]) {
+                // When the leaf coset actually owns the permutation.
+                node_perms[i] = std::move(refined_perms_[i]);
+            } else {
+                // Or we have to make a copy since it might still going to be
+                // used by earlier cosets.
+                node_perms[i] = std::make_unique<P>(*perms_[i]);
+            }
+        }
+
+        return { std::move(node_perms), std::move(partition_) };
     }
 
     /** Gets the point individualized during its construction.
@@ -1030,6 +1047,19 @@ private:
      */
 
     mutable Partition partition_;
+
+    //
+    // Here we have two arrays for both node permutations and node symmetries,
+    // with one being owned pointers and another being borrowed.
+    //
+    // The rationale for this is that the borrowed pointers are for the
+    // symmetries and permutations passed in from earlier cosets.  And the
+    // owned ones will be for the symmetries and permutations refined from the
+    // current step.  When further refinement is carried out for a node in the
+    // current step, the two are actually identical.  Or when further
+    // refinement is not carried out for a node, the owned pointer will stay to
+    // be null and the borrowed pointers will stay what it was set to be.
+    //
 
     /** The current permutations applied to the nodes.
      */
