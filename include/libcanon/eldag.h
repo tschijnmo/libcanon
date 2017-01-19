@@ -195,6 +195,24 @@ using Owned_node_symms = std::vector<std::unique_ptr<Sims_transv<P>>>;
 
 template <typename P> using Borrowed_node_perms = std::vector<const P*>;
 
+/** Borrows references from owned references.
+ *
+ * It is here implemented with vector hard-coded.  This is designed solely for
+ * the node symmetry and permutation types.
+ */
+
+template <typename T>
+std::vector<const T*> borrow_pointers(
+    const std::vector<std::unique_ptr<T>>& owned_pointers)
+{
+    std::vector<const T*> res;
+
+    std::transform(owned_pointers.begin(), owned_pointers.end(),
+        std::back_inserter(res), [](const auto& i) { return i.get(); });
+
+    return res;
+}
+
 /** Acts permutations on an Eldag.
  *
  * Here the global permutation of the nodes should be given in a
@@ -310,16 +328,7 @@ template <typename P> struct Eldag_perm {
      * The returned vector will have borrowed reference for the permutations.
      */
 
-    Borrowed_node_perms<P> get_perms() const
-    {
-        Borrowed_node_perms<P> res{};
-
-        for (const auto& i : perms) {
-            res.push_back(i.get());
-        }
-
-        return res;
-    }
+    Borrowed_node_perms<P> get_perms() const { return borrow_pointers(perms); }
 };
 
 /** Acts an eldag with a given permutation.
