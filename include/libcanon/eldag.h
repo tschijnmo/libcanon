@@ -488,6 +488,7 @@ private:
 
     class Detailed_edges : public std::vector<Detailed_edge> {
 
+    public:
         /** Compares two for order.
          *
          * Here larger number of connections is considered smaller.  In
@@ -605,6 +606,7 @@ private:
      */
 
     class Valence {
+    public:
         Valence(const Eldag& eldag, const Partition& partition, Point node,
             const P* perm)
             : eldag_(&eldag)
@@ -626,10 +628,10 @@ private:
                 offset = *perm_ >> slot;
             }
 
-            auto base_idx = eldag_.ia[node_];
-            assert(offset >= 0 && offset < eldag_.n_valences(node_));
+            auto base_idx = eldag_->ia[node_];
+            assert(offset >= 0 && offset < eldag_->n_valences(node_));
 
-            return partition_.get_colour(eldag_->edges[base_idx + offset]);
+            return partition_->get_colour(eldag_->edges[base_idx + offset]);
         }
 
     private:
@@ -665,7 +667,7 @@ private:
         // Refinement for nodes are independent.
         for (size_t i = 0; i < size(); ++i) {
 
-            auto curr_symm = symms[i];
+            auto curr_symm = symms_[i];
             if (!curr_symm) {
                 // Nodes without symmetry, without need for *further*
                 // refinement.
@@ -687,9 +689,9 @@ private:
                     = std::make_unique<P>(*perms_[i] | canon_res.first);
                 refined_perms_[i] = std::move(new_perm);
             }
-            refined_symms[i] = std::move(canon_res.second);
-            perms[i] = refined_perms[i].get();
-            symms[i] = refined_symms[i].get();
+            refined_symms_[i] = std::move(canon_res.second);
+            perms_[i] = refined_perms_[i].get();
+            symms_[i] = refined_symms_[i].get();
         }
     }
 
@@ -706,8 +708,8 @@ private:
             Orbit orbit(n_valences);
             std::iota(orbit.begin(), orbit.end(), 0);
 
-            for (const Sims_transv<P>* transv = symms[node]; transv != nullptr;
-                 transv = transv->get_next()) {
+            for (const Sims_transv<P>* transv = symms_[node]; transv != nullptr;
+                 transv = transv->next()) {
                 Point target = transv->target();
                 for (const auto& perm : *transv) {
                     orbit[perm >> target] = orbit[target];
@@ -730,19 +732,19 @@ private:
     {
         // Short-cut singleton partitions.  They will be automatically
         // short-cut in split by key function any way.
-        if (partition.get_cell_size(splittee) < 2)
+        if (partition_.get_cell_size(splittee) < 2)
             return;
 
-        std::for_each(partition.cell_begin(splittee),
-            partition.cell_end(splittee), [&](Point base) {
+        std::for_each(partition_.cell_begin(splittee),
+            partition_.cell_end(splittee), [&](Point base) {
                 Detailed_edges& ins = conns[base].first;
                 Detailed_edges& outs = conns[base].second;
 
                 ins.clear();
                 outs.clear();
 
-                std::for_each(partition.cell_begin(splitter),
-                    partition.cell_end(splitter), [&](Point curr) {
+                std::for_each(partition_.cell_begin(splitter),
+                    partition_.cell_end(splitter), [&](Point curr) {
                         // Add connection with the current point.
                         add_detailed_edges(ins, eldag, orbits, curr, base);
                         add_detailed_edges(outs, eldag, orbits, base, curr);
@@ -874,7 +876,7 @@ public:
     /** Acts a permutation on an Eldag.
      */
 
-    Eldag act(const Perm& perm, const Eldag& eldag) { return act(eldag, perm); }
+    Eldag act(const Perm& perm, const Eldag& eldag) { return act(perm, eldag); }
 
     /** Left multiplies an automorphism onto a coset.
      */
@@ -892,7 +894,7 @@ public:
         assert(upper.size() == lower.size());
 
         return std::make_unique<Sims_transv<P>>(
-            upper.size(), lower.individualized());
+            lower.individualized(), upper.size());
     }
 };
 
@@ -905,8 +907,8 @@ public:
  */
 
 template <typename P, typename F>
-std::pair<Eldag_perm<P>, Sims_transv<P>> canon_eldag(
-    const Eldag& eldag, const Symms<P>& symms, F init_colour)
+std::pair<Eldag_perm<P>, std::unique_ptr<Sims_transv<P>>> canon_eldag(
+    const Eldag& eldag, const Node_symms<P>& symms, F init_colour)
 {
     Partition init_part(eldag.size());
     init_part.split_by_key(0, init_colour);
@@ -914,7 +916,7 @@ std::pair<Eldag_perm<P>, Sims_transv<P>> canon_eldag(
     Eldag_refiner<P> refiner{};
     Eldag_coset<P> root_coset(init_part, symms);
 
-    using Container = std::unorderd_map<Eldag, Eldag_perm<P>>;
+    using Container = std::unordered_map<Eldag, Eldag_perm<P>>;
     Container container{};
 
     auto aut = add_all_candidates(refiner, eldag, root_coset, container);
@@ -923,7 +925,7 @@ std::pair<Eldag_perm<P>, Sims_transv<P>> canon_eldag(
         = std::min_element(container.begin(), container.end(),
             [](const auto& a, const auto& b) { return a.first < b.first; });
 
-    return { std::move(canon_form.second), std::move(aut) };
+    return { std::move(canon_form->second), std::move(aut) };
 }
 
 } // End namespace libcanon.
