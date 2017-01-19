@@ -86,6 +86,35 @@ struct Eldag {
     {
     }
 
+    /** Creates an empty Eldag.
+     *
+     * This empty Eldag is not completely empty, a zero is already added to the
+     * ia array.
+     */
+
+    Eldag()
+        : edges()
+        , ia{ 0 }
+    {
+    }
+
+    /** Copy constructs an eldag.
+     */
+
+    Eldag(const Eldag& eldag) = default;
+
+    /** Move constructs an eldag.
+     */
+
+    Eldag(Eldag&& eldag) = default;
+
+    /** Pushes the current number of edges into ia.
+     *
+     * This method can be helpful after finish adding edges from a node.
+     */
+
+    void update_ia() { ia.push_back(edges.size()); }
+
     /** Evaluates the hash of an Eldag.
      *
      * This is a very simple-minded hash function, just the values in the two
