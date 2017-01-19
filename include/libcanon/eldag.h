@@ -334,7 +334,8 @@ public:
      */
 
     template <typename T>
-    Eldag_coset(T&& init_part, const Node_symms<P>& init_symms)
+    Eldag_coset(
+        const Eldag& eldag, T&& init_part, const Node_symms<P>& init_symms)
         : partition_(std::forward<T>(init_part))
         , symms_(init_symms)
         , perms_(init_part.size(), nullptr)
@@ -343,6 +344,7 @@ public:
         , individualized_(init_part.size())
     {
         assert(init_part.size() == init_symms.size());
+        refine(eldag);
     }
 
     /** Constructs a coset by individualizing a point.
@@ -351,7 +353,7 @@ public:
      * construction is better used on cosets after refinement.
      */
 
-    Eldag_coset(const Eldag_coset& base, Point point)
+    Eldag_coset(const Eldag& eldag, const Eldag_coset& base, Point point)
         : individualized_(point)
         , partition_(base.partition_, point)
         , symms_(base.symms_)
@@ -359,6 +361,7 @@ public:
         , refined_perms_()
         , refined_symms_()
     {
+        refine(eldag);
     }
 
     /** Constructs a coset by acting a permutation.
@@ -388,7 +391,8 @@ public:
      * done lazily.
      */
 
-    std::vector<Eldag_coset> individualize_first_nonsingleton()
+    std::vector<Eldag_coset> individualize_first_nonsingleton(
+        const Eldag& eldag) const
     {
         auto cell = std::find_if(partition_.begin(), partition_.end(),
             [&](auto cell) { return partition_.get_cell_size(cell) > 1; });
@@ -397,14 +401,18 @@ public:
         assert(cell != partition_.end());
 
         std::vector<Eldag_coset> res;
-        std::transform(partition.cell_begin(*cell), partition.cell_end(*cell),
+        std::transform(partition_.cell_begin(*cell), partition_.cell_end(*cell),
             std::back_inserter(res),
-            [&](auto point) { return Eldag_coset(*this, point); });
+            [&](auto point) { return Eldag_coset(eldag, *this, point); });
 
         return res;
     }
 
     /** Tests if the result is a leaf.
+     */
+
+    bool is_leaf(const Eldag& eldag) const { return partition_.is_discrete(); }
+
      *
      * In addition to testing, most importantly, the Weisfeiler-Lehman
      * refinement will be performed here.
@@ -576,12 +584,12 @@ private:
 
             std::for_each(
                 partition_.rbegin(), partition_.rend(), [&](auto splittee) {
-                    for (auto splitter : partition) {
+                    for (auto splitter : partition_) {
 
                         update_conns4cell(
                             conns, eldag, orbits, splittee, splitter);
 
-                        split |= partition.split_by_key(
+                        split |= partition_.split_by_key(
                             splittee, [&](auto point) -> const Conn& {
                                 return conns[point];
                             });
@@ -857,13 +865,13 @@ public:
 
     std::vector<Coset> refine(const Eldag& eldag, const Coset& coset)
     {
-        return coset.individualize_first_nonsingleton();
+        return coset.individualize_first_nonsingleton(eldag);
     }
 
     /** Decides if a coset is a leaf.
      */
 
-    bool is_leaf(const Eldag& eldag, Coset& coset)
+    bool is_leaf(const Eldag& eldag, const Coset& coset)
     {
         return coset.is_leaf(eldag);
     }
@@ -914,7 +922,7 @@ std::pair<Eldag_perm<P>, std::unique_ptr<Sims_transv<P>>> canon_eldag(
     init_part.split_by_key(0, init_colour);
 
     Eldag_refiner<P> refiner{};
-    Eldag_coset<P> root_coset(init_part, symms);
+    Eldag_coset<P> root_coset(eldag, init_part, symms);
 
     using Container = std::unordered_map<Eldag, Eldag_perm<P>>;
     Container container{};
