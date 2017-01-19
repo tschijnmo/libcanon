@@ -26,6 +26,11 @@
 
 namespace libcanon {
 
+//
+// Type for eldags
+// ---------------
+//
+
 /** Data type for an Eldag.
  *
  * This is basically a CSR format to stored the children of each node.  This
@@ -152,6 +157,11 @@ struct Eldag {
         return ia < other.ia || (ia == other.ia && edges < other.edges);
     }
 };
+
+//
+// Utilities for node symmetries and permutations
+// ----------------------------------------------
+//
 
 /** The data type to given symmetries for the nodes in an Eldag.
  *
@@ -323,6 +333,11 @@ Eldag act_eldag(const Eldag_perm<P>& perm, const Eldag& eldag)
 {
     return act_eldag(perm.partition.make_perm(), perm.get_perms(), eldag);
 }
+
+//
+// Core canonicalization support
+// -----------------------------
+//
 
 /** Data type for a coset in the canonicalization of an Eldag.
  *
