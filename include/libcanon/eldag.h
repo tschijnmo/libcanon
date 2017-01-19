@@ -184,7 +184,7 @@ template <typename P> using Node_perms = std::vector<std::unique_ptr<P>>;
  */
 
 template <typename G, typename L>
-Eldag act(const Eldag& eldag, const G& gl_perm, const L& perms)
+Eldag act_eldag(const G& gl_perm, const L& perms, const Eldag& eldag)
 {
     size_t size = eldag.size();
     Eldag res(size, eldag.n_edges());
@@ -315,6 +315,18 @@ template <typename P> struct Eldag_perm {
         return res;
     }
 };
+
+/** Acts an eldag with a given permutation.
+ *
+ * This is a convenience wrapper function for acting the permutations
+ * encapsulated in an Eldag_perm object onto an Eldag.
+ */
+
+template <typename P>
+Eldag act_eldag(const Eldag_perm<P>& perm, const Eldag& eldag)
+{
+    return act_eldag(perm.partition.make_perm(), perm.get_perms(), eldag);
+}
 
 /** Data type for a coset in the canonicalization of an Eldag.
  *
@@ -1029,17 +1041,6 @@ private:
     Point individualized_;
 };
 
-/** Acts an eldag with a given permutation.
- *
- * This is a convenience wrapper function for acting the permutations
- * encapsulated in an Eldag_perm object onto an Eldag.
- */
-
-template <typename P> Eldag act(const Eldag& eldag, const Eldag_perm<P>& perm)
-{
-    return act(eldag, perm.partition.make_perm(), perm.get_perms());
-}
-
 /** The actual refiner for Eldag canonicalization.
  */
 
@@ -1083,7 +1084,10 @@ public:
     /** Acts a permutation on an Eldag.
      */
 
-    Eldag act(const Perm& perm, const Eldag& eldag) { return act(perm, eldag); }
+    Eldag act(const Perm& perm, const Eldag& eldag)
+    {
+        return act_eldag(perm, eldag);
+    }
 
     /** Left multiplies an automorphism onto a coset.
      */
