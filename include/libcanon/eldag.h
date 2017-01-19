@@ -382,17 +382,204 @@ public:
     {
     }
 
-    /** Individualizes the refined partition.
+    //
+    // Individualization support
+    //
+    // The cosets with individualized node needs to be able to be looped over
+    // lazily.
+    //
+
+    /** Container for a non-singleton cell.
      *
-     * This method can be called after the testing of leaf, where the partition
-     * is going to be refined.
+     * In addition to storing a pair of iterators for the points in the cell,
+     * here we also have reference to the eldag and the parent coset.  In this
+     * way, it can be iterable to get the cosets from individualizing the
+     * points in the cell.
      *
-     * Currently we eagerly put the result in a vector, it should better be
-     * done lazily.
+     * For convenience, it is implemented as a template in case we need other
+     * forms of iterators.
      */
 
-    std::vector<Eldag_coset> individualize_first_nonsingleton(
-        const Eldag& eldag) const
+    template <typename Cell_it> class Nonsingleton_cell {
+    public:
+        /** Constructs a non-singleton cell.
+         */
+
+        Nonsingleton_cell(const Eldag& eldag, const Eldag_coset& coset,
+            Cell_it cell_begin, Cell_it cell_end)
+            : eldag_(eldag)
+            , parent_(coset)
+            , cell_begin_(cell_begin)
+            , cell_end_(cell_end)
+        {
+        }
+
+        /** Gets the begin of the iterator over the cell.
+         *
+         * Here we make a copy that is slightly redundant.  In this way, the
+         * cell can be iterated over multiple times when it is really needed.
+         */
+
+        Cell_it cell_begin() const { return cell_begin_; }
+
+        /** Gets the end of the iterator over the cell.
+         */
+
+        Cell_it cell_end() const { return cell_end_; }
+
+        /** Gets the eldag.
+         */
+
+        const Eldag& eldag() const { return eldag_; }
+
+        /** Gets the parent coset.
+         */
+
+        const Eldag_coset& parent() const { return parent_; }
+
+    private:
+        /** The begin of the iterators for the non-singleton cell.
+         */
+
+        Cell_it cell_begin_;
+
+        /** Sentinel for iterating over the points in the non-singleton cell.
+         */
+
+        Cell_it cell_end_;
+
+        /** The eldag that the coset is for.
+         */
+
+        const Eldag& eldag_;
+
+        /** The parent coset.
+         */
+
+        const Eldag_coset& parent_;
+    };
+
+    /** Forms a non-singleton cell instance.
+     *
+     * Let's just hope for earlier wide adoption of C++17.
+     */
+
+    template <typename Cell_it>
+    static Nonsingleton_cell<Cell_it> make_nonsingleton_cell(const Eldag& eldag,
+        const Eldag_coset& coset, Cell_it cell_begin, Cell_it cell_end)
+    {
+        return { eldag, coset, cell_begin, cell_end };
+    }
+
+    /** Iterator for iterating over cosets from individualizing points in cell.
+     */
+
+    template <typename Cell_it> struct Invididualized_it {
+
+        /** The actual iterator over the points.
+         */
+
+        Cell_it curr;
+
+        /** Reference to the non-singleton cell.
+         */
+        const Nonsingleton_cell<Cell_it>& cell;
+
+        /** Increments the iterator.
+         */
+
+        Invididualized_it& operator++()
+        {
+            ++curr;
+            return *this;
+        }
+
+        /** Dereferences the iterator.
+         *
+         * Note that here the dereferencing gives values directly (R-value).
+         */
+
+        Eldag_coset operator*() const
+        {
+            return { cell.eldag(), cell.parent(), *curr };
+        }
+
+        /** Compares two iterators for equality.
+         */
+
+        bool operator==(const Invididualized_it& other) const
+        {
+            return curr == other.curr;
+        }
+
+        /** Compares two iterators for inequality.
+         */
+
+        bool operator!=(const Invididualized_it& other) const
+        {
+            return !(*this == other);
+        }
+
+        /** The reference type.
+         *
+         * This iterator generates the points as R-value directly.
+         */
+
+        using reference = Eldag_coset;
+
+        /** The value type.
+         */
+
+        using value_type = Eldag_coset;
+
+        /** The iterator category.
+         */
+
+        using iterator_category = std::input_iterator_tag;
+
+        /** The pointer type.
+         *
+         * Here we temporarily do not implement the -> operator.  It can be
+         * added when portability problem occurs.
+         */
+
+        using pointer = void;
+
+        /** Different type.
+         *
+         * Here we just use the major signed int type.
+         */
+
+        using difference_type = ptrdiff_t;
+    };
+
+    /** Begins the iteration over the individualized cosets.
+     */
+
+    template <typename Cell_it>
+    friend Invididualized_it<Cell_it> begin(
+        const Nonsingleton_cell<Cell_it>& nonsingleton_cell)
+    {
+        return { nonsingleton_cell.cell_begin(), nonsingleton_cell };
+    }
+
+    /** Gets the sentinel for iterating over individualized cosets.
+     */
+
+    template <typename Cell_it>
+    friend Invididualized_it<Cell_it> end(
+        const Nonsingleton_cell<Cell_it>& nonsingleton_cell)
+    {
+        return { nonsingleton_cell.cell_end(), nonsingleton_cell };
+    }
+
+    /** Individualizes the refined partition.
+     *
+     * Here we return a lazy iterable that can be looped over to get the actual
+     * cosets from individualizing the points in the first non-singleton cell.
+     */
+
+    auto individualize_first_nonsingleton(const Eldag& eldag) const
     {
         auto cell = std::find_if(partition_.begin(), partition_.end(),
             [&](auto cell) { return partition_.get_cell_size(cell) > 1; });
@@ -400,13 +587,13 @@ public:
         // When used correctly, we should find a non-singleton cell here.
         assert(cell != partition_.end());
 
-        std::vector<Eldag_coset> res;
-        std::transform(partition_.cell_begin(*cell), partition_.cell_end(*cell),
-            std::back_inserter(res),
-            [&](auto point) { return Eldag_coset(eldag, *this, point); });
-
-        return res;
+        return make_nonsingleton_cell(eldag, *this,
+            partition_.cell_begin(*cell), partition_.cell_end(*cell));
     }
+
+    //
+    // End of individualization section.
+    //
 
     /** Tests if the result is a leaf.
      */
@@ -872,7 +1059,7 @@ public:
     /** Refines the given coset.
      */
 
-    std::vector<Coset> refine(const Eldag& eldag, const Coset& coset)
+    auto refine(const Eldag& eldag, const Coset& coset)
     {
         return coset.individualize_first_nonsingleton(eldag);
     }
