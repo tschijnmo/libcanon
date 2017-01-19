@@ -174,6 +174,17 @@ template <typename P> using Node_symms = std::vector<const Sims_transv<P>*>;
 
 template <typename P> using Node_perms = std::vector<std::unique_ptr<P>>;
 
+/** Data type for owned references to node symmetries.
+ */
+
+template <typename P>
+using Owned_node_symms = std::vector<std::unique_ptr<Sims_transv<P>>>;
+
+/** Data type for borrowed references to node permutations.
+ */
+
+template <typename P> using Borrowed_node_perms = std::vector<const P*>;
+
 /** Acts permutations on an Eldag.
  *
  * Here the global permutation of the nodes should be given in a
@@ -220,17 +231,6 @@ Eldag act_eldag(const G& gl_perm, const L& perms, const Eldag& eldag)
 
     return res;
 }
-
-/** Data type for owned references to node symmetries.
- */
-
-template <typename P>
-using Owned_node_symms = std::vector<std::unique_ptr<Sims_transv<P>>>;
-
-/** Data type for borrowed references to node permutations.
- */
-
-template <typename P> using Borrowed_node_perms = std::vector<const P*>;
 
 /** Data type for a permutation on an Eldag.
  *
