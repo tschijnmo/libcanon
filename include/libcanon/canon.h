@@ -230,13 +230,11 @@ public:
             is_leaf_ = false;
 
             auto children = refiner.refine(obj, coset);
-            auto child_iter = begin(children);
-            auto child_sentinel = end(children);
 
             // Non-leaf cosets are guaranteed to have non-empty refinement.
-            assert(child_iter != child_sentinel);
+            assert(begin(children) != end(children));
 
-            std::for_each(child_iter, child_sentinel, [&](auto&& child) {
+            std::for_each(begin(children), end(children), [&](auto&& child) {
                 children_.emplace(
                     std::forward<decltype(child)>(child), nullptr);
             });
