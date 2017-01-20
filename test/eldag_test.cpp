@@ -21,7 +21,7 @@ using namespace libcanon;
  * cyclic C3 group.
  */
 
-TEST(triangle_graph, can_be_canonicalized)
+TEST(Test_triangle_graph, can_be_canonicalized)
 {
     // Build the graph.
     const size_t n_nodes = 3;
@@ -82,7 +82,7 @@ template <typename It> Eldag make_star_graph(It begin, It end)
  * is no symmetry in the valences of the root node.
  */
 
-TEST(non_symm_star_graph, can_be_canonicalized)
+TEST(Test_non_symm_star_graph, can_be_canonicalized)
 {
 
     std::vector<Point> children{ 1, 2, 3 };
@@ -121,7 +121,7 @@ TEST(non_symm_star_graph, can_be_canonicalized)
  * test.
  */
 
-TEST(symm_star_graph, can_be_canonicalized)
+TEST(Test_symm_star_graph, can_be_canonicalized)
 {
 
     std::vector<Point> children{ 1, 2, 3 };
