@@ -61,3 +61,55 @@ TEST(triangle_graph, can_be_canonicalized)
     }
     EXPECT_EQ(n_aut, 2);
 }
+
+/** Forms a star graph.
+ *
+ * A star graph has a root node that is connected to other nodes in the graph.
+ */
+
+template <typename It> Eldag make_star_graph(It begin, It end)
+{
+    Eldag star{};
+    star.edges.insert(star.edges.end(), begin, end);
+    for (size_t i = 0; i < star.edges.size() + 1; ++i)
+        star.update_ia();
+    return star;
+}
+
+/** Tests the canonicalization of a non-symmetric star graph.
+ *
+ * Here in the star graph, we have one root node and three child nodes.  There
+ * is no symmetry in the valences of the root node.
+ */
+
+TEST(non_symm_star_graph, can_be_canonicalized)
+{
+
+    // The expect form of the canonical form.
+    //
+    // We strive to make the canonical form look like this since it is the most
+    // natural form.
+
+    Eldag expected_canon{};
+    expected_canon.edges.insert(expected_canon.edges.end(), { 1, 2, 3 });
+    for (size_t i = 0; i < expected_canon.edges.size() + 1; ++i)
+        expected_canon.update_ia();
+
+    // Now we loop over some other possible forms.
+
+    std::vector<Point> children{ 1, 2, 3 };
+
+    do {
+        auto star = make_star_graph(children.begin(), children.end());
+
+        Node_symms<Simple_perm> symms(star.size(), nullptr);
+        auto res = canon_eldag(star, symms, [](auto i) { return 0; });
+
+        // This graph should have no symmetry.
+        EXPECT_FALSE(res.second);
+
+        auto canon_form = act_eldag(res.first, star);
+        EXPECT_EQ(canon_form, expected_canon);
+
+    } while (std::next_permutation(children.begin(), children.end()));
+}
