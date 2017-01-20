@@ -5,8 +5,9 @@
  * nodes, and highly symmetrical ones and highly unsymmetrical ones.
  */
 
-#include <vector>
+#include <algorithm>
 #include <memory>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -34,5 +35,29 @@ TEST(triangle_graph, can_be_canonicalized)
     Node_symms<Simple_perm> symms(n_nodes, nullptr);
     auto res = canon_eldag(triangle, symms, [](auto point) { return 0; });
 
-    // TODO: Add checking.
+    // Here we just test the canonicalizing perm can be acted on the triangle.
+    Eldag canon_form = act_eldag(res.first, triangle);
+
+    // The automorphism group is the core of the symmetry testing.
+
+    ASSERT_TRUE(res.second);
+    const auto& transv = *res.second;
+    EXPECT_FALSE(transv.next());
+    Point target = transv.target();
+
+    std::vector<Point> points{ 0, 1, 2 };
+    points.erase(std::find(points.begin(), points.end(), target));
+    ASSERT_EQ(points.size(), 2);
+
+    size_t n_aut = 0;
+    for (const auto& i : transv) {
+        ++n_aut;
+
+        // Make sure that they are all cyclic permutation.
+        Point sel_point = i >> target;
+        Point other_point = points[0] == sel_point ? points[1] : points[0];
+        EXPECT_EQ(other_point, i >> sel_point);
+        EXPECT_EQ(target, i >> other_point);
+    }
+    EXPECT_EQ(n_aut, 2);
 }
