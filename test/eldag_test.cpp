@@ -110,3 +110,70 @@ TEST(non_symm_star_graph, can_be_canonicalized)
 
     } while (std::next_permutation(children.begin(), children.end()));
 }
+
+/** Tests the canonicalization of a symmetric star graph.
+ *
+ * This test is very similar to the test of non-symmetric star graph, just here
+ * we have symmetry in the valences of the root node.
+ *
+ * Significant code duplication can be seen.  However, due to the different
+ * code segments that is covered by the two tests, it is put here as a separate
+ * test.
+ */
+
+TEST(symm_star_graph, can_be_canonicalized)
+{
+
+    std::vector<Point> children{ 1, 2, 3 };
+
+    Eldag expected_canon = make_star_graph(children.begin(), children.end());
+
+    // The symmetries.
+    Node_symms<Simple_perm> symms(children.size() + 1, nullptr);
+    auto node_symm = build_sims_sys<Simple_perm>(
+        children.size(), { { 2, 0, 1 }, { 1, 0, 2 } });
+    symms[0] = node_symm.get();
+
+    do {
+
+        auto star = make_star_graph(children.begin(), children.end());
+
+        auto res = canon_eldag(star, symms, [](auto i) { return 0; });
+
+        auto canon_form = act_eldag(res.first, star);
+        EXPECT_EQ(canon_form, expected_canon);
+
+        // We have automorphism in this graph now, it should be S3 among the
+        // three child nodes.
+
+        ASSERT_TRUE(res.second);
+        const auto& transv1 = *res.second;
+        ASSERT_TRUE(transv1.next());
+        const auto& transv2 = *transv1.next();
+        EXPECT_FALSE(transv2.next());
+
+        auto target1 = transv1.target();
+        Point_vec orbit1{ target1 };
+        for (const auto& i : transv1) {
+            orbit1.push_back(i >> target1);
+        }
+        std::sort(orbit1.begin(), orbit1.end());
+        Point_vec expected_orbit1{ 1, 2, 3 };
+        EXPECT_EQ(orbit1, expected_orbit1);
+
+        auto target2 = transv2.target();
+        EXPECT_NE(target1, target2);
+        Point_vec orbit2{ target2 };
+        for (const auto& i : transv2) {
+            orbit2.push_back(i >> target2);
+        }
+        EXPECT_EQ(orbit2.size(), 2);
+
+        // The second orbit should be the same as the first when the target of
+        // the first orbit is added.
+        orbit2.push_back(target1);
+        std::sort(orbit2.begin(), orbit2.end());
+        EXPECT_EQ(orbit2, expected_orbit1);
+
+    } while (std::next_permutation(children.begin(), children.end()));
+}
