@@ -755,14 +755,7 @@ private:
 
         bool operator<(const Detailed_edges& other) const
         {
-            size_t size_l = size();
-            size_t size_r = other.size();
-
-            using Base = const std::vector<Detailed_edge>&;
-
-            return size_l > size_r
-                || (size_l == size_r
-                       && static_cast<Base>(*this) < static_cast<Base>(other));
+            return is_degrev_less<std::vector<Detailed_edge>>(*this, other);
         }
     };
 
