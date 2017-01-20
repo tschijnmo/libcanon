@@ -405,7 +405,7 @@ public:
      */
 
     Eldag_coset(const Eldag_coset& base, const Simple_perm& perm)
-        : individualized_(perm >> base.individualized())
+        : individualized_(perm << base.individualized())
         , partition_()
         , perms_()
         , symms_()
@@ -836,7 +836,16 @@ private:
             for (auto splittee_i = partition_.rbegin();
                  splittee_i != partition_.rend(); ++splittee_i) {
                 Point splittee = *splittee_i;
+
                 for (auto splitter : partition_) {
+
+                    // Short-cut singleton partitions.  It is put here rather
+                    // than the upper loop since a cell might be partitioned to
+                    // singleton early before all the splitters are looped
+                    // over.
+
+                    if (partition_.get_cell_size(splittee) < 2)
+                        break;
 
                     update_conns4cell(conns, eldag, orbits, splittee, splitter);
 
@@ -844,8 +853,9 @@ private:
                         splittee, [&](auto point) -> const Conn& {
                             return conns[point];
                         });
-                }
-            }
+                } // End loop over splitters.
+
+            } // End loop over splittees.
 
             if (split) {
                 continue;
@@ -989,10 +999,9 @@ private:
     void update_conns4cell(Conns& conns, const Eldag& eldag,
         const Orbits& orbits, Point splittee, Point splitter)
     {
-        // Short-cut singleton partitions.  They will be automatically
-        // short-cut in split by key function any way.
-        if (partition_.get_cell_size(splittee) < 2)
-            return;
+        // Normally this function should not be called on singleton cells,
+        // since it can be just purely waste.
+        assert(partition_.get_cell_size(splittee) > 1);
 
         std::for_each(partition_.cell_begin(splittee),
             partition_.cell_end(splittee), [&](Point base) {
