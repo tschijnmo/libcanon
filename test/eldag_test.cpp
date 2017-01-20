@@ -177,3 +177,72 @@ TEST(Test_symm_star_graph, can_be_canonicalized)
 
     } while (std::next_permutation(children.begin(), children.end()));
 }
+
+/** Tests canonicalization of the Eldag of tracing the product of two matrices.
+ *
+ * The eldag in this test correspond to the tracing of the product of two
+ * symmetric matrices.  The two matrices will be considered to be the same
+ * matrix, and the dummies are over the same range.  So the automorphism group
+ * should be S2 for the matrices and the dummies must follow.
+ */
+
+TEST(Test_trace_eldag, can_be_canonicalized)
+{
+    std::unique_ptr<Eldag> expected_canon;
+
+    Point_vec nodes{ 0, 1, 2, 3 };
+
+    // The symmetry of the matrices.
+    Node_symms<Simple_perm> symms(nodes.size(), nullptr);
+    auto node_symm = build_sims_sys<Simple_perm>(2, { { 0, 1 } });
+    symms[0] = node_symm.get();
+    symms[1] = node_symm.get();
+
+    do {
+
+        // Form the eldag.
+        Eldag curr_form{};
+        auto children_begin = nodes.begin() + 2;
+        auto children_end = nodes.end();
+        for (size_t i = 0; i < 4; ++i) {
+            if (i == nodes[0] || i == nodes[1]) {
+                curr_form.edges.insert(
+                    curr_form.edges.end(), children_begin, children_end);
+            }
+            curr_form.update_ia();
+        }
+
+        // Set the expected canonical form for the first loop.
+        if (!expected_canon) {
+            expected_canon = std::make_unique<Eldag>(std::move(curr_form));
+            continue;
+        }
+
+        auto res = canon_eldag(curr_form, symms, [](auto i) { return 0; });
+
+        auto canon_form = act_eldag(res.first, curr_form);
+        EXPECT_EQ(curr_form, *expected_canon);
+
+        // Test the automorphism.
+        ASSERT_TRUE(res.second);
+        const auto& transv = *res.second;
+        EXPECT_FALSE(transv.next());
+
+        Simple_perm aut{};
+        size_t n_auts = 0;
+        for (const auto& i : transv) {
+            aut = i;
+            n_auts++;
+        }
+        EXPECT_EQ(n_auts, 1);
+
+        EXPECT_EQ(nodes[0], aut >> nodes[1]);
+        EXPECT_EQ(nodes[1], aut >> nodes[0]);
+
+        // Maybe they do not need to follow sometimes.
+        //
+        // EXPECT_EQ(nodes[2], aut >> nodes[3]);
+        // EXPECT_EQ(nodes[3], aut >> nodes[2]);
+
+    } while (std::next_permutation(nodes.begin(), nodes.end()));
+}
