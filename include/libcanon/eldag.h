@@ -1220,7 +1220,9 @@ std::pair<Eldag_perm<P>, std::unique_ptr<Sims_transv<P>>> canon_eldag(
         = std::min_element(container.begin(), container.end(),
             [](const auto& a, const auto& b) { return a.first < b.first; });
 
-    return { std::move(canon_form->second), std::move(aut) };
+    auto min_aut = min_transv(std::move(aut));
+
+    return { std::move(canon_form->second), std::move(min_aut) };
 }
 
 } // End namespace libcanon.
