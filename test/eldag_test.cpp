@@ -85,21 +85,18 @@ template <typename It> Eldag make_star_graph(It begin, It end)
 TEST(non_symm_star_graph, can_be_canonicalized)
 {
 
-    // The expect form of the canonical form.
+    std::vector<Point> children{ 1, 2, 3 };
+
+    // The expected form of the canonical form.
     //
     // We strive to make the canonical form look like this since it is the most
     // natural form.
 
-    Eldag expected_canon{};
-    expected_canon.edges.insert(expected_canon.edges.end(), { 1, 2, 3 });
-    for (size_t i = 0; i < expected_canon.edges.size() + 1; ++i)
-        expected_canon.update_ia();
+    Eldag expected_canon = make_star_graph(children.begin(), children.end());
 
     // Now we loop over some other possible forms.
-
-    std::vector<Point> children{ 1, 2, 3 };
-
     do {
+
         auto star = make_star_graph(children.begin(), children.end());
 
         Node_symms<Simple_perm> symms(star.size(), nullptr);
