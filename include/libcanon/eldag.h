@@ -670,9 +670,17 @@ public:
     Point individualized() const { return individualized_; }
 
     /** Gets the size of the graph.
+     *
+     * Here we use the size of the immutable permutations vector, in case the
+     * contents in mutable members has been moved out.
      */
 
-    size_t size() const { return partition_.size(); }
+    size_t size() const
+    {
+        size_t size = perms_.size();
+        assert(symms_.size() == size);
+        return size;
+    }
 
     /** Compares two cosets for equality.
      *
