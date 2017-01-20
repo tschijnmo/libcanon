@@ -711,10 +711,30 @@ private:
     /** The orbit label of valences of a node.
      *
      * Values of this type can be used to map a valence of a node to its orbit
-     * label.
+     * label.  Here longer orbits are considered smaller so that nodes with
+     * higher degree will be given smaller index, which might be more natural.
      */
 
-    using Orbit = std::vector<Point>;
+    class Orbit : public std::vector<Point> {
+    public:
+        /** Alias for the base type.
+         */
+
+        using Base = std::vector<Point>;
+
+        /** Inheriting all the constructors from the base type.
+         */
+
+        using Base::Base;
+
+        /** Makes revdeg comparison.
+         */
+
+        bool operator<(const Orbit& other) const
+        {
+            return is_degrev_less<std::vector<Point>>(*this, other);
+        }
+    };
 
     /** The orbits of nodes in an Eldag.
      *
