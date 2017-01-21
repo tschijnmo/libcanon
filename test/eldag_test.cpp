@@ -217,7 +217,8 @@ TEST(Test_trace_eldag, can_be_canonicalized)
 
         // Set the expected canonical form for the first loop.
         if (!expected_canon) {
-            expected_canon = std::make_unique<Eldag>(std::move(curr_form));
+            // Make a copy so that itself can be tested as well.
+            expected_canon = std::make_unique<Eldag>(curr_form);
         }
 
         auto res = canon_eldag(curr_form, symms, [&](auto i) {
