@@ -2,7 +2,7 @@ import os
 
 def FlagsForFile(filename, **kwargs):
 
-    flags = ['std=c++1z', '-I/usr/local/include']
+    flags = ['-std=c++14', '-I/usr/local/include']
 
     proj_root = os.path.dirname(os.path.abspath(__file__))
     proj_include = ''.join(['-I', proj_root, '/include'])
