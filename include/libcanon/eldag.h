@@ -243,8 +243,8 @@ Eldag act_eldag(const G& gl_perm, const L& perms, const Eldag& eldag)
         for (size_t i = 0; i < valence; ++i) {
             size_t offset = i;
 
-            if (perms[curr]) {
-                offset = *perms[curr] >> offset;
+            if (perms[pre_img]) {
+                offset = *perms[pre_img] >> offset;
             }
 
             assert(offset >= 0 && offset < valence);
