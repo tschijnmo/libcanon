@@ -12,6 +12,7 @@
 #include <gtest/gtest.h>
 
 #include <libcanon/eldag.h>
+#include <libcanon/sims.h>
 
 using namespace libcanon;
 
@@ -183,7 +184,7 @@ TEST(Test_symm_star_graph, can_be_canonicalized)
  * The eldag in this test correspond to the tracing of the product of two
  * symmetric matrices.  The two matrices will be considered to be the same
  * matrix, and the dummies are over the same range.  So the automorphism group
- * should be S2 for the matrices and the dummies must follow.
+ * should be S2xS2 for the matrices and the dummies.
  */
 
 TEST(Test_trace_eldag, can_be_canonicalized)
@@ -193,56 +194,81 @@ TEST(Test_trace_eldag, can_be_canonicalized)
     Point_vec nodes{ 0, 1, 2, 3 };
 
     // The symmetry of the matrices.
-    Node_symms<Simple_perm> symms(nodes.size(), nullptr);
-    auto node_symm = build_sims_sys<Simple_perm>(2, { { 0, 1 } });
-    symms[0] = node_symm.get();
-    symms[1] = node_symm.get();
+    auto node_symm = build_sims_sys<Simple_perm>(2, { { 1, 0 } });
 
     do {
 
         // Form the eldag.
         Eldag curr_form{};
-        auto children_begin = nodes.begin() + 2;
-        auto children_end = nodes.end();
+        auto children_begin = nodes.cbegin();
+        auto children_end = nodes.cbegin() + 2;
         for (size_t i = 0; i < 4; ++i) {
-            if (i == nodes[0] || i == nodes[1]) {
+            if (i == nodes[2] || i == nodes[3]) {
                 curr_form.edges.insert(
                     curr_form.edges.end(), children_begin, children_end);
             }
             curr_form.update_ia();
         }
 
+        // Form the symmetries of the nodes.
+        Node_symms<Simple_perm> symms(nodes.size(), nullptr);
+        symms[nodes[2]] = node_symm.get();
+        symms[nodes[3]] = node_symm.get();
+
         // Set the expected canonical form for the first loop.
         if (!expected_canon) {
             expected_canon = std::make_unique<Eldag>(std::move(curr_form));
-            continue;
         }
 
-        auto res = canon_eldag(curr_form, symms, [](auto i) { return 0; });
+        auto res = canon_eldag(curr_form, symms, [&](auto i) {
+            if (i == nodes[2] || i == nodes[3]) {
+                return 1;
+            } else {
+                return 0;
+            }
+        });
 
         auto canon_form = act_eldag(res.first, curr_form);
-        EXPECT_EQ(curr_form, *expected_canon);
+        EXPECT_EQ(canon_form, *expected_canon);
 
         // Test the automorphism.
-        ASSERT_TRUE(res.second);
-        const auto& transv = *res.second;
-        EXPECT_FALSE(transv.next());
-
-        Simple_perm aut{};
-        size_t n_auts = 0;
-        for (const auto& i : transv) {
-            aut = i;
-            n_auts++;
+        using Transv = Sims_transv<Simple_perm>;
+        std::vector<const Transv*> transvs{};
+        for (const Transv* i = res.second.get(); i; i = i->next()) {
+            transvs.push_back(i);
         }
-        EXPECT_EQ(n_auts, 1);
+        ASSERT_EQ(transvs.size(), 2);
 
-        EXPECT_EQ(nodes[0], aut >> nodes[1]);
-        EXPECT_EQ(nodes[1], aut >> nodes[0]);
+        // We need to have the two orbits for the matrices and dummies.
+        std::vector<Point_vec> orbits{};
+        std::for_each(transvs.begin(), transvs.end(), [&](auto transv_ptr) {
+            const auto& transv = *transv_ptr;
 
-        // Maybe they do not need to follow sometimes.
-        //
-        // EXPECT_EQ(nodes[2], aut >> nodes[3]);
-        // EXPECT_EQ(nodes[3], aut >> nodes[2]);
+            Point target = transv.target();
+            size_t n_auts = 0;
+            Point_vec orbit{ target };
+
+            for (const auto& i : transv) {
+                ++n_auts;
+                orbit.push_back(i >> target);
+            }
+
+            orbits.push_back(std::move(orbit));
+        });
+
+        std::vector<Point_vec> expected_orbits
+            = { { nodes[0], nodes[1] }, { nodes[2], nodes[3] } };
+
+        for (auto i : { &orbits, &expected_orbits }) {
+            for (auto& j : *i) {
+                std::sort(j.begin(), j.end());
+            }
+            std::sort(i->begin(), i->end());
+        }
+        EXPECT_EQ(orbits, expected_orbits);
+
+        // A two-level Sims transversal system with this two orbits must be the
+        // group S2xS2.
 
     } while (std::next_permutation(nodes.begin(), nodes.end()));
 }
