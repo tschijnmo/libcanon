@@ -383,12 +383,12 @@ public:
     template <typename T>
     Eldag_coset(
         const Eldag& eldag, T&& init_part, const Node_symms<P>& init_symms)
-        : individualized_(init_part.size())
-        , partition_(std::forward<T>(init_part))
+        : partition_(std::forward<T>(init_part))
         , perms_(init_part.size(), nullptr)
         , symms_(init_symms)
         , refined_perms_(init_part.size())
         , refined_symms_(init_part.size())
+        , individualized_(init_part.size())
     {
         assert(init_part.size() == init_symms.size());
         refine(eldag);
