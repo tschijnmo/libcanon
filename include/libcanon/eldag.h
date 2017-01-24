@@ -14,6 +14,7 @@
 #include <iterator>
 #include <memory>
 #include <numeric>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -100,6 +101,20 @@ struct Eldag {
     Eldag()
         : edges()
         , ia{ 0 }
+    {
+    }
+
+    /** Constructs an eldag directly from its edges and ia.
+     */
+
+    template <typename T1, typename T2,
+        typename = std::enable_if_t<std::is_constructible<std::vector<size_t>,
+            T1>::value>,
+        typename = std::enable_if_t<std::is_constructible<std::vector<size_t>,
+            T2>::value>>
+    Eldag(T1&& edges, T2&& ia)
+        : edges(std::forward<T1>(edges))
+        , ia(std::forward<T2>(ia))
     {
     }
 
