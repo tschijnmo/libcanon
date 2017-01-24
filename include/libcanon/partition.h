@@ -338,8 +338,8 @@ public:
          */
 
         Cell_it(const Partition& partition, Point curr, bool if_rev = false)
-            : partition_(&partition)
-            , curr_(curr)
+            : curr_(curr)
+            , partition_(&partition)
             , if_rev_(if_rev)
         {
         }
