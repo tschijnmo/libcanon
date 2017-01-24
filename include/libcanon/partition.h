@@ -489,8 +489,7 @@ public:
             size_t begin_idx = perm_.size();
             perm_.insert(perm_.end(), cell.begin(), cell.end());
             size_t end_idx = perm_.size();
-            size_t cell_size = cell.size();
-            assert(end_idx == begin_idx + cell_size);
+            assert(end_idx == begin_idx + cell.size());
 
             for (auto i : cell) {
                 begins_[i] = begin_idx;
