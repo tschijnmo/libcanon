@@ -383,12 +383,12 @@ public:
     template <typename T>
     Eldag_coset(
         const Eldag& eldag, T&& init_part, const Node_symms<P>& init_symms)
-        : partition_(std::forward<T>(init_part))
-        , symms_(init_symms)
+        : individualized_(init_part.size())
+        , partition_(std::forward<T>(init_part))
         , perms_(init_part.size(), nullptr)
-        , refined_symms_(init_part.size())
+        , symms_(init_symms)
         , refined_perms_(init_part.size())
-        , individualized_(init_part.size())
+        , refined_symms_(init_part.size())
     {
         assert(init_part.size() == init_symms.size());
         refine(eldag);
@@ -401,12 +401,12 @@ public:
      */
 
     Eldag_coset(const Eldag& eldag, const Eldag_coset& base, Point point)
-        : individualized_(point)
-        , partition_(base.partition_, point)
-        , symms_(base.symms_)
+        : partition_(base.partition_, point)
         , perms_(base.perms_)
+        , symms_(base.symms_)
         , refined_perms_(eldag.size())
         , refined_symms_(eldag.size())
+        , individualized_(point)
     {
         refine(eldag);
     }
@@ -420,12 +420,12 @@ public:
      */
 
     Eldag_coset(const Eldag_coset& base, const Simple_perm& perm)
-        : individualized_(perm << base.individualized())
-        , partition_()
+        : partition_()
         , perms_()
         , symms_()
         , refined_perms_()
         , refined_symms_()
+        , individualized_(perm << base.individualized())
     {
     }
 
@@ -485,16 +485,6 @@ public:
         const Eldag_coset& parent() const { return parent_; }
 
     private:
-        /** The begin of the iterators for the non-singleton cell.
-         */
-
-        Cell_it cell_begin_;
-
-        /** Sentinel for iterating over the points in the non-singleton cell.
-         */
-
-        Cell_it cell_end_;
-
         /** The eldag that the coset is for.
          */
 
@@ -504,6 +494,16 @@ public:
          */
 
         const Eldag_coset& parent_;
+
+        /** The begin of the iterators for the non-singleton cell.
+         */
+
+        Cell_it cell_begin_;
+
+        /** Sentinel for iterating over the points in the non-singleton cell.
+         */
+
+        Cell_it cell_end_;
     };
 
     /** Forms a non-singleton cell instance.

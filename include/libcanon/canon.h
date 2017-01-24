@@ -512,8 +512,8 @@ private:
     Exp_path* curr_exp_path_;
 
     // For leaf nodes.
-    std::unique_ptr<Act_res> form_;
     std::unique_ptr<Perm> perm_;
+    std::unique_ptr<Act_res> form_;
 };
 
 /** Adds all candidates from the successive refinement of the given coset.
