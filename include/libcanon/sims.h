@@ -11,6 +11,7 @@
 #define LIBCANON_SIMS_H
 
 #include <cassert>
+#include <cstddef>
 #include <iterator>
 #include <memory>
 #include <vector>
