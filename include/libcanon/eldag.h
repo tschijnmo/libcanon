@@ -128,6 +128,16 @@ struct Eldag {
 
     Eldag(Eldag&& eldag) = default;
 
+    /** Copy assignment for an eldag.
+     */
+
+    Eldag& operator=(const Eldag& eldag) = default;
+
+    /** Move assignment for an eldag.
+     */
+
+    Eldag& operator=(Eldag&& eldag) = default;
+
     /** Pushes the current number of edges into ia.
      *
      * This method can be helpful after finish adding edges from a node.
