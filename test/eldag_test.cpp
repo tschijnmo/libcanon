@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -272,4 +273,99 @@ TEST(Test_trace_eldag, can_be_canonicalized)
         // group S2xS2.
 
     } while (std::next_permutation(nodes.begin(), nodes.end()));
+}
+
+/** Tests canonicalization of the Eldag of exchange diagrams.
+ *
+ * The eldag in this test vaguely corresponds to the diagram for exchange
+ * interaction in restricted CCSD theory,
+ *
+ *     t_abij u_jiab
+ *
+ * Here we test the canonicalization of all eight of its equivalent forms,
+ * where the first tensor has all four possible connection with the dummies,
+ * the second tensor exchanges either the first two or the second two slots.
+ *
+ */
+
+TEST(Test_exchange_eldag, can_be_canonicalized)
+{
+    // Form the symmetries of the nodes.
+    //
+    // The two-body symmetry.
+    auto node_symm = build_sims_sys<Simple_perm>(4, { { 1, 0, 3, 2 } });
+    Node_symms<Simple_perm> symms(6, nullptr);
+    symms[4] = node_symm.get();
+    symms[5] = node_symm.get();
+
+    // The colours of the nodes.
+    std::vector<size_t> colours{ 0, 0, 1, 1, 2, 3 };
+
+    Eldag expected_canon{};
+
+    for (bool swap_first : { true, false }) {
+        for (bool swap_second : { true, false }) {
+            for (bool exch_first : { true, false }) {
+
+                //
+                // Build the initial form.
+                //
+
+                Eldag curr_form{};
+
+                // The dummies.
+                for (size_t i = 0; i < 4; ++i) {
+                    curr_form.update_ia();
+                }
+
+                // The first tensor.
+                Point_vec children{ 0, 1, 2, 3 };
+                if (swap_first) {
+                    std::swap(children[0], children[1]);
+                }
+                if (swap_second) {
+                    std::swap(children[2], children[3]);
+                }
+                curr_form.edges.insert(
+                    curr_form.edges.end(), children.begin(), children.end());
+                curr_form.update_ia();
+
+                // The second tensor.
+                if (exch_first) {
+                    std::swap(children[0], children[1]);
+                } else {
+                    std::swap(children[2], children[3]);
+                }
+                std::swap(children[0], children[2]);
+                std::swap(children[1], children[3]);
+                curr_form.edges.insert(
+                    curr_form.edges.end(), children.begin(), children.end());
+                curr_form.update_ia();
+
+                //
+                // Perform the canonicalization.
+                //
+
+                auto res = canon_eldag(
+                    curr_form, symms, [&](auto i) { return colours[i]; });
+
+                //
+                // Test the canonical form.
+                //
+
+                auto canon_form = act_eldag(res.first, curr_form);
+                if (expected_canon.size() != 0) {
+                    EXPECT_EQ(canon_form, expected_canon);
+                } else {
+                    expected_canon = std::move(canon_form);
+                }
+
+                //
+                // Test the automorphism
+                //
+                //
+                // TODO: Add automorphism testing.
+            }
+        }
+    }
 }
