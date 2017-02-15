@@ -1009,11 +1009,12 @@ private:
             Orbit orbit(n_valences);
             std::iota(orbit.begin(), orbit.end(), 0);
 
-            for (const Sims_transv<P>* transv = symms_[node]; transv != nullptr;
-                 transv = transv->next()) {
-                Point target = transv->target();
-                for (const auto& perm : *transv) {
-                    orbit[perm >> target] = orbit[target];
+            for (size_t base = 0; base < n_valences; ++base) {
+                for (const Sims_transv<P>* transv = symms_[node];
+                     transv != nullptr; transv = transv->next()) {
+                    for (const auto& perm : *transv) {
+                        orbit[perm << base] = orbit[base];
+                    }
                 }
             }
 
