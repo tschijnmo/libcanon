@@ -27,6 +27,115 @@ namespace libcanon {
 
 class Partition {
 public:
+    /** Iterator type for cells in the partition.
+     *
+     * Dereferencing the iterator will give a point in the cell.
+     */
+
+    class Cell_it {
+    public:
+        /** The reference type.
+         *
+         * This iterator generates the points as R-value directly.
+         */
+
+        using reference = Point;
+
+        /** The value type.
+         */
+
+        using value_type = Point;
+
+        /** The iterator category.
+         */
+
+        using iterator_category = std::input_iterator_tag;
+
+        /** The pointer type.
+         *
+         * Here we temporarily do not implement the -> operator.  It can be
+         * added when portability problem occurs.
+         */
+
+        using pointer = void;
+
+        /** Different type.
+         *
+         * Here we just use the major signed int type.
+         */
+
+        using difference_type = ptrdiff_t;
+
+        /** Constructs a cell iterator.
+         */
+
+        Cell_it(const Partition& partition, Point curr, bool if_rev = false)
+            : curr_(curr)
+            , partition_(&partition)
+            , if_rev_(if_rev)
+        {
+        }
+
+        /** Increments a cell iterator.
+         */
+
+        Cell_it& operator++()
+        {
+            if (if_rev_) {
+                curr_ = partition_->prev_cell(curr_);
+            } else {
+                curr_ = partition_->next_cell(curr_);
+            }
+
+            return *this;
+        }
+
+        /** Dereferences a cell iterator.
+         */
+
+        Point operator*() const { return curr_; }
+
+        /** Compares two iterators for equality.
+         *
+         * Note that this implementation can only be used for the comparison of
+         * iterators for the same partition in the same direction.
+         */
+
+        bool operator==(const Cell_it& other)
+        {
+            assert(this->partition_ == other.partition_);
+            assert(this->if_rev_ == other.if_rev_);
+
+            // Actually we should compare the colour.  But here for performance
+            // reasons, we directly compare the point.  Iterators on the same
+            // cell should be at exactly the same point if the iterators are
+            // created and incremented by using only the public interface.
+
+            return this->curr_ == other.curr_;
+        }
+
+        /** Compares two iterators for inequality.
+         */
+
+        bool operator!=(const Cell_it& other) { return !(*this == other); }
+
+    private:
+        /** The current point.
+         */
+
+        Point curr_;
+
+        /** Pointer to the partition to be looped over.
+         */
+
+        const Partition* partition_;
+
+        /** If this iterator goes in the reverse direction.
+         */
+
+        bool if_rev_;
+    };
+
     //
     // Construction and manipulation
     //
@@ -294,115 +403,6 @@ public:
             return size();
         }
     }
-
-    /** Iterator type for cells in the partition.
-     *
-     * Dereferencing the iterator will give a point in the cell.
-     */
-
-    class Cell_it {
-    public:
-        /** The reference type.
-         *
-         * This iterator generates the points as R-value directly.
-         */
-
-        using reference = Point;
-
-        /** The value type.
-         */
-
-        using value_type = Point;
-
-        /** The iterator category.
-         */
-
-        using iterator_category = std::input_iterator_tag;
-
-        /** The pointer type.
-         *
-         * Here we temporarily do not implement the -> operator.  It can be
-         * added when portability problem occurs.
-         */
-
-        using pointer = void;
-
-        /** Different type.
-         *
-         * Here we just use the major signed int type.
-         */
-
-        using difference_type = ptrdiff_t;
-
-        /** Constructs a cell iterator.
-         */
-
-        Cell_it(const Partition& partition, Point curr, bool if_rev = false)
-            : curr_(curr)
-            , partition_(&partition)
-            , if_rev_(if_rev)
-        {
-        }
-
-        /** Increments a cell iterator.
-         */
-
-        Cell_it& operator++()
-        {
-            if (if_rev_) {
-                curr_ = partition_->prev_cell(curr_);
-            } else {
-                curr_ = partition_->next_cell(curr_);
-            }
-
-            return *this;
-        }
-
-        /** Dereferences a cell iterator.
-         */
-
-        Point operator*() const { return curr_; }
-
-        /** Compares two iterators for equality.
-         *
-         * Note that this implementation can only be used for the comparison of
-         * iterators for the same partition in the same direction.
-         */
-
-        bool operator==(const Cell_it& other)
-        {
-            assert(this->partition_ == other.partition_);
-            assert(this->if_rev_ == other.if_rev_);
-
-            // Actually we should compare the colour.  But here for performance
-            // reasons, we directly compare the point.  Iterators on the same
-            // cell should be at exactly the same point if the iterators are
-            // created and incremented by using only the public interface.
-
-            return this->curr_ == other.curr_;
-        }
-
-        /** Compares two iterators for inequality.
-         */
-
-        bool operator!=(const Cell_it& other) { return !(*this == other); }
-
-    private:
-        /** The current point.
-         */
-
-        Point curr_;
-
-        /** Pointer to the partition to be looped over.
-         */
-
-        const Partition* partition_;
-
-        /** If this iterator goes in the reverse direction.
-         */
-
-        bool if_rev_;
-    };
 
     /** Get the begin iterator for looping cells forward.
      */
