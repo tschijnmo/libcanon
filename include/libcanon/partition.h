@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <iostream>
 #include <iterator>
 #include <numeric>
 #include <vector>
@@ -27,6 +28,134 @@ namespace libcanon {
 
 class Partition {
 public:
+    /** Iterator type for cells in the partition.
+     *
+     * Dereferencing the iterator will give a point in the cell.
+     */
+
+    class Cell_it {
+    public:
+        /** The reference type.
+         *
+         * This iterator generates the points as R-value directly.
+         */
+
+        using reference = Point;
+
+        /** The value type.
+         */
+
+        using value_type = Point;
+
+        /** The iterator category.
+         */
+
+        using iterator_category = std::input_iterator_tag;
+
+        /** The pointer type.
+         *
+         * Here we temporarily do not implement the -> operator.  It can be
+         * added when portability problem occurs.
+         */
+
+        using pointer = void;
+
+        /** Different type.
+         *
+         * Here we just use the major signed int type.
+         */
+
+        using difference_type = ptrdiff_t;
+
+        /** Constructs a cell iterator.
+         */
+
+        Cell_it(const Partition& partition, Point curr, bool if_rev = false)
+            : curr_(curr)
+            , size_(partition.size())
+            , partition_(&partition)
+            , if_rev_(if_rev)
+        {
+        }
+
+        /** Increments a cell iterator.
+         */
+
+        Cell_it& operator++()
+        {
+            if (if_rev_) {
+                curr_ = partition_->prev_cell(curr_);
+            } else {
+                curr_ = partition_->next_cell(curr_);
+            }
+
+            return *this;
+        }
+
+        /** Dereferences a cell iterator.
+         *
+         * The dereferenced point is *any point in the cell*.  And the result
+         * can also be mutated to update where the iterator points to.
+         */
+
+        Point& operator*() { return curr_; }
+
+        /** The colour of the cell that the iterator points to.
+         *
+         * For end iterator, the colour will be the size of the underlying
+         * partition.
+         */
+
+        auto cell_colour() const
+        {
+            return curr_ < size_ ? partition_->get_colour(curr_) : size_;
+        }
+
+        /** Compares two iterators for equality.
+         *
+         * Note that this implementation can only be used for the comparison of
+         * iterators for the same partition in the same direction.
+         */
+
+        bool operator==(const Cell_it& other)
+        {
+            assert(this->partition_ == other.partition_);
+            assert(this->if_rev_ == other.if_rev_);
+            return cell_colour() == other.cell_colour();
+        }
+
+        /** Compares two iterators for inequality.
+         */
+
+        bool operator!=(const Cell_it& other) { return !(*this == other); }
+
+        /** If the iterator is a reverse one.
+         */
+
+        bool if_rev() const { return if_rev_; }
+
+    private:
+        /** The current point.
+         */
+
+        Point curr_;
+
+        /** Pointer to the partition to be looped over.
+         */
+
+        const Partition* partition_;
+
+        /** The cached size of the partition.
+         */
+
+        const size_t size_;
+
+        /** If this iterator goes in the reverse direction.
+         */
+
+        bool if_rev_;
+    };
+
     //
     // Construction and manipulation
     //
@@ -111,21 +240,31 @@ public:
      *
      * Whether splitting actually occurred will be returned as a boolean.
      *
-     * The cell can be given by any point in the cell.
+     * The cell can be given by any point in the cell.  And any number of
+     * partition cell iterators can be given to be corrected.  As the result of
+     * correction, forward cell iterators will point to the first cell after
+     * the possible split, and backward cell iterators will point to the last
+     * cell.  This could enable better and deterministic looping over the cells
+     * when the partition is itself gradually refined during the loop.
      */
 
-    template <typename T> bool split_by_key(Point point, T get_key)
+    template <typename T, typename... It>
+    bool split_by_key(Point point, T get_key, It&... its)
     {
         auto cell_size = get_cell_size(point);
         if (cell_size == 1)
             return false;
 
-        // Sort the points within the cell according to the given key function.
+        auto cell_colour = get_colour(point);
+        std::vector<Cell_it*> to_correct{};
+        filter_its(to_correct, cell_colour, its...);
 
+        // Sort the points within the cell according to the given key function.
         std::sort(cell_begin(point), cell_end(point),
             [&](auto x, auto y) { return get_key(x) < get_key(y); });
 
         size_t base_idx = begins_[point];
+        size_t orig_end = ends_[point];
         size_t curr_begin = base_idx; // Begin index of the current new cell.
         size_t n_groups = 0; // Number of groups found.
 
@@ -146,10 +285,20 @@ public:
 
             begins_[curr_point] = curr_begin; // Set begins_
         }
-
         // The end of the points within the last cell need no update.
 
-        return n_groups > 1;
+        if (n_groups > 1) {
+            // Correct given cell iterators when a split happened.
+            Point front_point = perm_[base_idx];
+            Point back_point = perm_[orig_end - 1];
+            std::for_each(
+                to_correct.begin(), to_correct.end(), [&](Cell_it* i) {
+                    **i = i->if_rev() ? back_point : front_point;
+                });
+            return true;
+        } else {
+            return false;
+        }
     }
 
     //
@@ -195,10 +344,11 @@ public:
     /** Gets the colour of a point.
      *
      * The assigned colour will just be an integer that is equal for all points
-     * in the same cell and is ordered the same.
+     * in the same cell and is ordered the same.  For all points outside the
+     * range, the result is undefined.
      */
 
-    size_t get_colour(Point point) const { return ends_[point]; }
+    size_t get_colour(Point point) const { return begins_[point]; }
 
     //
     // Iteration support
@@ -294,115 +444,6 @@ public:
             return size();
         }
     }
-
-    /** Iterator type for cells in the partition.
-     *
-     * Dereferencing the iterator will give a point in the cell.
-     */
-
-    class Cell_it {
-    public:
-        /** The reference type.
-         *
-         * This iterator generates the points as R-value directly.
-         */
-
-        using reference = Point;
-
-        /** The value type.
-         */
-
-        using value_type = Point;
-
-        /** The iterator category.
-         */
-
-        using iterator_category = std::input_iterator_tag;
-
-        /** The pointer type.
-         *
-         * Here we temporarily do not implement the -> operator.  It can be
-         * added when portability problem occurs.
-         */
-
-        using pointer = void;
-
-        /** Different type.
-         *
-         * Here we just use the major signed int type.
-         */
-
-        using difference_type = ptrdiff_t;
-
-        /** Constructs a cell iterator.
-         */
-
-        Cell_it(const Partition& partition, Point curr, bool if_rev = false)
-            : curr_(curr)
-            , partition_(&partition)
-            , if_rev_(if_rev)
-        {
-        }
-
-        /** Increments a cell iterator.
-         */
-
-        Cell_it& operator++()
-        {
-            if (if_rev_) {
-                curr_ = partition_->prev_cell(curr_);
-            } else {
-                curr_ = partition_->next_cell(curr_);
-            }
-
-            return *this;
-        }
-
-        /** Dereferences a cell iterator.
-         */
-
-        Point operator*() const { return curr_; }
-
-        /** Compares two iterators for equality.
-         *
-         * Note that this implementation can only be used for the comparison of
-         * iterators for the same partition in the same direction.
-         */
-
-        bool operator==(const Cell_it& other)
-        {
-            assert(this->partition_ == other.partition_);
-            assert(this->if_rev_ == other.if_rev_);
-
-            // Actually we should compare the colour.  But here for performance
-            // reasons, we directly compare the point.  Iterators on the same
-            // cell should be at exactly the same point if the iterators are
-            // created and incremented by using only the public interface.
-
-            return this->curr_ == other.curr_;
-        }
-
-        /** Compares two iterators for inequality.
-         */
-
-        bool operator!=(const Cell_it& other) { return !(*this == other); }
-
-    private:
-        /** The current point.
-         */
-
-        Point curr_;
-
-        /** Pointer to the partition to be looped over.
-         */
-
-        const Partition* partition_;
-
-        /** If this iterator goes in the reverse direction.
-         */
-
-        bool if_rev_;
-    };
 
     /** Get the begin iterator for looping cells forward.
      */
@@ -510,6 +551,23 @@ public:
         return get_normal_form() == other.get_normal_form();
     }
 
+    /** Formats the partition to an output stream.
+     *
+     * This function is mostly for the purpose of ease of debugging and
+     * testing.
+     */
+
+    friend std::ostream& operator<<(std::ostream& o, const Partition& p)
+    {
+        for (const auto& i : p.get_normal_form()) {
+            for (auto j : i)
+                o << ' ' << j;
+            o << " |";
+        }
+
+        return o;
+    }
+
 private:
     //
     // Internal utility methods.
@@ -527,6 +585,22 @@ private:
         std::advance(it, idx);
         return it;
     }
+
+    /** Filters cell iterators pertaining to the given cell.
+     */
+
+    template <typename... It>
+    void filter_its(
+        std::vector<Cell_it*>& res, Point cell_colour, Cell_it& it, It&... its)
+    {
+        if (it.cell_colour() == cell_colour) {
+            res.push_back(&it);
+        }
+        filter_its(res, cell_colour, its...);
+        return;
+    }
+
+    void filter_its(std::vector<Cell_it*>& res, Point cell_colour) { return; }
 
     //
     // Data fields.

@@ -108,10 +108,10 @@ struct Eldag {
      */
 
     template <typename T1, typename T2,
-        typename = std::enable_if_t<std::is_constructible<std::vector<size_t>,
-            T1>::value>,
-        typename = std::enable_if_t<std::is_constructible<std::vector<size_t>,
-            T2>::value>>
+        typename = std::enable_if_t<
+            std::is_constructible<std::vector<size_t>, T1>::value>,
+        typename = std::enable_if_t<
+            std::is_constructible<std::vector<size_t>, T2>::value>>
     Eldag(T1&& edges, T2&& ia)
         : edges(std::forward<T1>(edges))
         , ia(std::forward<T2>(ia))
@@ -846,7 +846,8 @@ private:
             //
 
             bool split = false;
-            // Back up the current partition for unary split.
+            // Back up the current partition for unary split, which does not
+            // benefit from the repeated refinement.
             std::vector<size_t> curr_partition(
                 partition_.begin(), partition_.end());
 
@@ -877,24 +878,24 @@ private:
 
             for (auto splittee_i = partition_.rbegin();
                  splittee_i != partition_.rend(); ++splittee_i) {
-                Point splittee = *splittee_i;
 
-                for (auto splitter : partition_) {
+                for (auto splitter_i = partition_.begin();
+                     splitter_i != partition_.end(); ++splitter_i) {
 
                     // Short-cut singleton partitions.  It is put here rather
                     // than the upper loop since a cell might be partitioned to
                     // singleton early before all the splitters are looped
                     // over.
 
-                    if (partition_.get_cell_size(splittee) < 2)
+                    if (partition_.get_cell_size(*splittee_i) < 2)
                         break;
 
-                    update_conns4cell(conns, eldag, orbits, splittee, splitter);
+                    update_conns4cell(
+                        conns, eldag, orbits, *splittee_i, *splitter_i);
 
-                    split |= partition_.split_by_key(
-                        splittee, [&](auto point) -> const Conn& {
-                            return conns[point];
-                        });
+                    split |= partition_.split_by_key(*splittee_i,
+                        [&](auto point) -> const Conn& { return conns[point]; },
+                        splittee_i, splitter_i);
                 } // End loop over splitters.
 
             } // End loop over splittees.
