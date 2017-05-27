@@ -329,10 +329,11 @@ public:
     /** Gets the colour of a point.
      *
      * The assigned colour will just be an integer that is equal for all points
-     * in the same cell and is ordered the same.
+     * in the same cell and is ordered the same.  For all points outside the
+     * range, the result is undefined.
      */
 
-    size_t get_colour(Point point) const { return ends_[point]; }
+    size_t get_colour(Point point) const { return begins_[point]; }
 
     //
     // Iteration support
