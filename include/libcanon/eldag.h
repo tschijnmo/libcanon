@@ -108,10 +108,10 @@ struct Eldag {
      */
 
     template <typename T1, typename T2,
-        typename = std::enable_if_t<std::is_constructible<std::vector<size_t>,
-            T1>::value>,
-        typename = std::enable_if_t<std::is_constructible<std::vector<size_t>,
-            T2>::value>>
+        typename = std::enable_if_t<
+            std::is_constructible<std::vector<size_t>, T1>::value>,
+        typename = std::enable_if_t<
+            std::is_constructible<std::vector<size_t>, T2>::value>>
     Eldag(T1&& edges, T2&& ia)
         : edges(std::forward<T1>(edges))
         , ia(std::forward<T2>(ia))
