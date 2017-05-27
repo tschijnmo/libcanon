@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <iostream>
 #include <iterator>
 #include <numeric>
 #include <vector>
@@ -534,6 +535,23 @@ public:
     bool operator==(const Partition& other) const
     {
         return get_normal_form() == other.get_normal_form();
+    }
+
+    /** Formats the partition to an output stream.
+     *
+     * This function is mostly for the purpose of ease of debugging and
+     * testing.
+     */
+
+    friend std::ostream& operator<<(std::ostream& o, const Partition& p)
+    {
+        for (const auto& i : p.get_normal_form()) {
+            for (auto j : i)
+                o << ' ' << j;
+            o << " |";
+        }
+
+        return o;
     }
 
 private:
