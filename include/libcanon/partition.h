@@ -121,13 +121,7 @@ public:
         {
             assert(this->partition_ == other.partition_);
             assert(this->if_rev_ == other.if_rev_);
-
-            // Actually we should compare the colour.  But here for performance
-            // reasons, we directly compare the point.  Iterators on the same
-            // cell should be at exactly the same point if the iterators are
-            // created and incremented by using only the public interface.
-
-            return this->curr_ == other.curr_;
+            return cell_colour() == other.cell_colour();
         }
 
         /** Compares two iterators for inequality.
