@@ -134,6 +134,11 @@ public:
 
         bool operator!=(const Cell_it& other) { return !(*this == other); }
 
+        /** If the iterator is a reverse one.
+         */
+
+        bool if_rev() const { return if_rev_; }
+
     private:
         /** The current point.
          */
