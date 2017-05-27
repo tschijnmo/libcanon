@@ -246,21 +246,31 @@ public:
      *
      * Whether splitting actually occurred will be returned as a boolean.
      *
-     * The cell can be given by any point in the cell.
+     * The cell can be given by any point in the cell.  And any number of
+     * partition cell iterators can be given to be corrected.  As the result of
+     * correction, forward cell iterators will point to the first cell after
+     * the possible split, and backward cell iterators will point to the last
+     * cell.  This could enable better and deterministic looping over the cells
+     * when the partition is itself gradually refined during the loop.
      */
 
-    template <typename T> bool split_by_key(Point point, T get_key)
+    template <typename T, typename... It>
+    bool split_by_key(Point point, T get_key, It&... its)
     {
         auto cell_size = get_cell_size(point);
         if (cell_size == 1)
             return false;
 
-        // Sort the points within the cell according to the given key function.
+        auto cell_colour = get_colour(point);
+        std::vector<Cell_it*> to_correct{};
+        filter_its(to_correct, cell_colour, its...);
 
+        // Sort the points within the cell according to the given key function.
         std::sort(cell_begin(point), cell_end(point),
             [&](auto x, auto y) { return get_key(x) < get_key(y); });
 
         size_t base_idx = begins_[point];
+        size_t orig_end = ends_[point];
         size_t curr_begin = base_idx; // Begin index of the current new cell.
         size_t n_groups = 0; // Number of groups found.
 
@@ -281,10 +291,20 @@ public:
 
             begins_[curr_point] = curr_begin; // Set begins_
         }
-
         // The end of the points within the last cell need no update.
 
-        return n_groups > 1;
+        if (n_groups > 1) {
+            // Correct given cell iterators when a split happened.
+            Point front_point = perm_[base_idx];
+            Point back_point = perm_[orig_end - 1];
+            std::for_each(
+                to_correct.begin(), to_correct.end(), [&](Cell_it* i) {
+                    **i = i->if_rev() ? back_point : front_point;
+                });
+            return true;
+        } else {
+            return false;
+        }
     }
 
     //
@@ -571,6 +591,22 @@ private:
         std::advance(it, idx);
         return it;
     }
+
+    /** Filters cell iterators pertaining to the given cell.
+     */
+
+    template <typename... It>
+    void filter_its(
+        std::vector<Cell_it*>& res, Point cell_colour, Cell_it& it, It&... its)
+    {
+        if (it.cell_colour() == cell_colour) {
+            res.push_back(&it);
+        }
+        filter_its(res, cell_colour, its...);
+        return;
+    }
+
+    void filter_its(std::vector<Cell_it*>& res, Point cell_colour) { return; }
 
     //
     // Data fields.
