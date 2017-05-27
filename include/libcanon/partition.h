@@ -72,8 +72,8 @@ public:
 
         Cell_it(const Partition& partition, Point curr, bool if_rev = false)
             : curr_(curr)
-            , size_(partition.size())
             , partition_(&partition)
+            , size_(partition.size())
             , if_rev_(if_rev)
         {
         }
