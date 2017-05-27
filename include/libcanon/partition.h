@@ -71,6 +71,7 @@ public:
 
         Cell_it(const Partition& partition, Point curr, bool if_rev = false)
             : curr_(curr)
+            , size_(partition.size())
             , partition_(&partition)
             , if_rev_(if_rev)
         {
@@ -97,6 +98,17 @@ public:
          */
 
         Point& operator*() { return curr_; }
+
+        /** The colour of the cell that the iterator points to.
+         *
+         * For end iterator, the colour will be the size of the underlying
+         * partition.
+         */
+
+        auto cell_colour() const
+        {
+            return curr_ < size_ ? partition_->get_colour(curr_) : size_;
+        }
 
         /** Compares two iterators for equality.
          *
@@ -132,6 +144,11 @@ public:
          */
 
         const Partition* partition_;
+
+        /** The cached size of the partition.
+         */
+
+        const size_t size_;
 
         /** If this iterator goes in the reverse direction.
          */
