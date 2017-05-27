@@ -91,9 +91,12 @@ public:
         }
 
         /** Dereferences a cell iterator.
+         *
+         * The dereferenced point is *any point in the cell*.  And the result
+         * can also be mutated to update where the iterator points to.
          */
 
-        Point operator*() const { return curr_; }
+        Point& operator*() { return curr_; }
 
         /** Compares two iterators for equality.
          *
