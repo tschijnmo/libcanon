@@ -1,0 +1,17 @@
+language:
+   - cpp
+
+addons:
+  apt:
+    sources:
+       - ubuntu-toolchain-r-test
+    packages:
+       - g++-7
+       - gfortran
+
+script:
+    - mkdir _builds
+    - cd _builds
+    - cmake ..
+    - make
+    - ctest
