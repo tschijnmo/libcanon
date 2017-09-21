@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/tschijnmo/libcanon.svg?branch=master)](https://travis-ci.org/tschijnmo/libcanon)
+
 # libcanon
 
 Libcanon is a C++ library for canonicalizing combinatorial objects with
