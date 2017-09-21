@@ -4,7 +4,7 @@ project(libcanon VERSION 0.1.0 LANGUAGES CXX)
 # OPTIONS
 include(GNUInstallDirs)
 option(BUILD_TESTS "Build unit tests" ON)
-option(BUILD_DOCS "Build the API documentation" ON)
+option(BUILD_DOCS "Build the API documentation" OFF)
 
 # Set the building options.
 set(CMAKE_CXX_STANDARD 14)
