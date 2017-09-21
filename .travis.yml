@@ -1,17 +1,21 @@
-language:
-   - cpp
+sudo: required
 
-addons:
-  apt:
-    sources:
-       - ubuntu-toolchain-r-test
-    packages:
-       - g++-7
-       - gfortran
+language:
+  - cpp
+
+services:
+  - docker
+
+install:
+  - docker build -t tschijnmo/libcanon_test .
 
 script:
-    - mkdir _builds
-    - cd _builds
-    - cmake ..
-    - make
-    - ctest
+  - >
+    docker run --rm tschijnmo/libcanon_test /bin/sh -c
+    "mkdir _build;
+    cd _build;
+    cmake ..;
+    make;
+    ctest;
+    "
+
