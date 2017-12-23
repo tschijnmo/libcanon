@@ -369,3 +369,50 @@ TEST(Test_exchange_eldag, can_be_canonicalized)
         }
     }
 }
+
+/** Tests canonicalization of the Eldag of special diagrams.
+ *
+ * The eldag in this test vaguely corresponds to a tensor expression in CCSD
+ * theory derivation by Lagrangian,
+ *
+ *  r[a, b, i, j] :=
+ *  t1[c, l] * t1[d, k] * u[k, i, c, a] * z2[d, b, j, l]
+ *
+ * This test serves to check the correct behaviour of the code for complex
+ * non-trivial topologies.
+ */
+
+TEST(Test_ccsd_langr, can_be_canonicalized)
+{
+    // Form the symmetries of the nodes.
+    //
+    // The two-body symmetry.
+    auto node_symm = build_sims_sys<Simple_perm>(4, { { 1, 0, 3, 2 } });
+    Node_symms<Simple_perm> symms(20, nullptr);
+    symms[14] = node_symm.get();
+
+    // The colours of the nodes.
+    std::vector<size_t> colours{ 0, 0, 1, 1, 5, 5, 7, 5, 5, 7, 4, 5, 2, 5, 8, 5,
+        3, 6, 5, 9 };
+
+    //
+    // Build the initial form.
+    //
+
+    Eldag eldag{};
+    eldag.edges = { 2, 1, 4, 5, 3, 0, 7, 8, 0, 2, 10, 11, 12, 13, 3, 1, 15, 16,
+        17, 18 };
+    eldag.ia = { 0, 0, 0, 0, 0, 1, 2, 4, 5, 6, 8, 8, 9, 9, 10, 14, 15, 15, 15,
+        16, 20 };
+
+    auto res = canon_eldag(eldag, symms, [&](auto i) { return colours[i]; });
+
+    //
+    // Test the canonical form.
+    //
+    Point_vec expected_order{ 0, 1, 2, 3, 12, 16, 10, 8, 5, 11, 18, 4, 7, 13,
+        15, 17, 9, 6, 14, 19 };
+    for (size_t i = 0; i < expected_order.size(); ++i) {
+        EXPECT_EQ(res.first.partition >> i, expected_order[i]);
+    }
+}
