@@ -1,0 +1,33 @@
+version: 2
+jobs:
+  test_debug:
+    docker:
+      - image: tschijnmo/gccpython:latest
+    steps:
+      - checkout
+      - run: |
+          mkdir cmake-test-debug
+          cd cmake-test-debug
+          cmake -DCMAKE_BUILD_TYPE=debug ..
+          make
+          ctest
+
+  test_release:
+    docker:
+      - image: tschijnmo/gccpython:latest
+    steps:
+      - checkout
+      - run: |
+          mkdir cmake-test-release
+          cd cmake-test-release
+          cmake -DCMAKE_BUILD_TYPE=release ..
+          make
+          ctest
+
+workflows:
+  version: 2
+  tests:
+    jobs:
+      - test_debug
+      - test_release
+
