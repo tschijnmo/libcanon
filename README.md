@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/tschijnmo/libcanon.svg?branch=master)](https://travis-ci.org/tschijnmo/libcanon)
+[![Build Status](https://circleci.com/gh/tschijnmo/libcanon.svg?style=shield)](https://circleci.com/gh/tschijnmo/libcanon)
 
 # libcanon
 
