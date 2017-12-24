@@ -224,10 +224,9 @@ TEST_F(Test_S3, can_be_multiplied)
     expect_id(cyclic | cyclic | cyclic);
 
     // Another test for t t t = t.
-    auto ttt_unevaled = transpose | transpose | transpose;
-    Simple_perm ttt_evaled(ttt_unevaled);
-    EXPECT_EQ(ttt_unevaled, transpose);
+    Simple_perm ttt_evaled(transpose | transpose | transpose);
     EXPECT_EQ(ttt_evaled, transpose);
+    EXPECT_EQ((transpose | transpose | transpose), transpose);
 
     // Tests for the composition of multiplication and inverse.
 
