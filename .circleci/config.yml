@@ -18,7 +18,6 @@ jobs:
     steps:
       - run: |
           git clone --recurse-submodules https://github.com/tschijnmo/libcanon.git
-          cd libcanon
           mkdir cmake-test-release
           cd cmake-test-release
           cmake -DCMAKE_BUILD_TYPE=release ../libcanon
