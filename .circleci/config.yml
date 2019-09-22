@@ -4,12 +4,11 @@ jobs:
     docker:
       - image: tschijnmo/drudge:base
     steps:
-      - checkout
-      - run: git submodule update --init --recursive
       - run: |
+          git clone https://github.com/tschijnmo/libcanon.git
           mkdir cmake-test-debug
           cd cmake-test-debug
-          cmake -DCMAKE_BUILD_TYPE=debug ..
+          cmake -DCMAKE_BUILD_TYPE=debug ../libcanon
           make
           ctest
 
@@ -17,12 +16,12 @@ jobs:
     docker:
       - image: tschijnmo/drudge:base
     steps:
-      - checkout
-      - run: git submodule update --init --recursive
       - run: |
+          git clone https://github.com/tschijnmo/libcanon.git
+          cd libcanon
           mkdir cmake-test-release
           cd cmake-test-release
-          cmake -DCMAKE_BUILD_TYPE=release ..
+          cmake -DCMAKE_BUILD_TYPE=release ../libcanon
           make
           ctest
 
