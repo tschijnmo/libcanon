@@ -5,7 +5,7 @@ jobs:
       - image: tschijnmo/drudge:base
     steps:
       - run: |
-          git clone https://github.com/tschijnmo/libcanon.git
+          git clone --recurse-submodules https://github.com/tschijnmo/libcanon.git
           mkdir cmake-test-debug
           cd cmake-test-debug
           cmake -DCMAKE_BUILD_TYPE=debug ../libcanon
@@ -17,7 +17,7 @@ jobs:
       - image: tschijnmo/drudge:base
     steps:
       - run: |
-          git clone https://github.com/tschijnmo/libcanon.git
+          git clone --recurse-submodules https://github.com/tschijnmo/libcanon.git
           cd libcanon
           mkdir cmake-test-release
           cd cmake-test-release
