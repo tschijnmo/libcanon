@@ -3,5 +3,6 @@ Language: Cpp
 BasedOnStyle: WebKit
 Standard: Cpp11
 ColumnLimit: 80
+SpaceBeforeCpp11BracedList: false
 ...
 

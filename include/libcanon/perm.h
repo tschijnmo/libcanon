@@ -630,7 +630,6 @@ template <typename T> void adapt_transv(T& input, T& output)
     }
 
     std::for_each(inputs.rbegin(), inputs.rend(), [&](T* curr_input) {
-
         using Perm_vector = std::vector<typename T::Perm>;
         using Perm_pointer_vector = std::vector<const typename T::Perm*>;
 
@@ -657,21 +656,8 @@ template <typename T> void adapt_transv(T& input, T& output)
             // The permutations to pass down.
             Perm_vector perms_to_pass{};
 
-            // Passed permutation times identity. It is treated before the
-            // actual products so that we can use move whenever it is
-            // possible.
-
-            for (auto& i : passed) {
-                auto res = internal::proc_perm_for_transv(
-                    std::move(*i), *curr_output, perms_to_pass);
-                if (res) {
-                    i = res; // Update to new location of the permutation.
-                }
-            }
-
-            // Other products, passed times existing.
-
             for (auto i : passed) {
+                internal::proc_perm_for_transv(*i, *curr_output, perms_to_pass);
                 for (auto j : existing) {
                     internal::proc_perm_for_transv(
                         *i | *j, *curr_output, perms_to_pass);
@@ -684,7 +670,6 @@ template <typename T> void adapt_transv(T& input, T& output)
         // If the two transversal are indeed for the same core kernel, we
         // should have nothing left now.
         assert(passed_perms.empty());
-
     }); // End loop input level.
 
     return;
