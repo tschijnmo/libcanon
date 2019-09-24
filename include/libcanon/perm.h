@@ -637,6 +637,10 @@ template <typename T> void adapt_transv(T& input, T& output)
         std::move(begin(*curr_input), end(*curr_input),
             std::back_inserter(passed_perms));
 
+        // Swap space for the permutations to pass down.
+        Perm_vector perms_to_pass{};
+        perms_to_pass.reserve(passed_perms.size());
+
         for (T* curr_output = &output; curr_output;
              curr_output = curr_output->next()) {
 
@@ -653,18 +657,30 @@ template <typename T> void adapt_transv(T& input, T& output)
                 std::back_inserter(passed),
                 [](const auto& perm) { return &perm; });
 
-            // The permutations to pass down.
-            Perm_vector perms_to_pass{};
+            // Passed permutation times identity.  It is treated before the
+            // actual products so that we can use move whenever it is possible.
+            // Note that it should not change the set of passed permutations,
+            // just they will possibly to moved to places where they can be
+            // used.
+            for (auto& i : passed) {
+                auto res = internal::proc_perm_for_transv(
+                    std::move(*i), *curr_output, perms_to_pass);
+                if (res) {
+                    i = res; // Update to new location of the permutation.
+                } // Else, the i perm should not be moved.
+            }
+
+            // Other products, passed times existing.
 
             for (auto i : passed) {
-                internal::proc_perm_for_transv(*i, *curr_output, perms_to_pass);
                 for (auto j : existing) {
                     internal::proc_perm_for_transv(
                         *i | *j, *curr_output, perms_to_pass);
                 }
             }
 
-            passed_perms = std::move(perms_to_pass);
+            swap(passed_perms, perms_to_pass);
+            perms_to_pass.clear();
         } // End loop output level.
 
         // If the two transversal are indeed for the same core kernel, we
